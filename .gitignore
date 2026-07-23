@@ -1,0 +1,14 @@
+# Mengabaikan folder cache bawaan Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Mengabaikan folder unggahan/hasil enkripsi PDF agar repositori tidak bengkak
+uploads/
+
+# Mengabaikan folder virtual environment (jika suatu saat kamu menggunakannya)
+venv/
+env/
+
+# Mengabaikan file database lokal (opsional, agar data riwayat tidak ikut terunggah)
+database_riwayat.json
