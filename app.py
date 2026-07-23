@@ -8,6 +8,13 @@ import kriptografi
 import time
 import json
 
+def hitung_perbedaan_bit(byte_array1, byte_array2):
+    diff = 0
+    for b1, b2 in zip(byte_array1, byte_array2):
+        xor_result = b1 ^ b2
+        diff += bin(xor_result).count('1')
+    return diff
+
 app = Flask(__name__)
 
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -96,6 +103,31 @@ def api_enkripsi():
             pdf_data = f.read()
             padded_data = pad_data(pdf_data)
 
+        # ========================================================
+        # 🧪 UJI AVALANCHE EFFECT (SAMPEL 1 BLOK PERTAMA DARI PDF)
+        # ========================================================
+        # Ambil sampel 1 blok pertama (16 byte) dari padded_data
+        block_sampel = bytearray(padded_data[:16])
+
+        # Enkripsi Asli untuk blok pertama
+        cipher_asli = kriptografi.encrypt_block(list(block_sampel), K, S)
+
+        # Skenario A: Ubah 1 bit pada File/Pesan
+        block_ubah = bytearray(block_sampel)
+        block_ubah[-1] = block_ubah[-1] ^ 1
+        cipher_ubah_pesan = kriptografi.encrypt_block(list(block_ubah), K, S)
+        beda_pesan = hitung_perbedaan_bit(cipher_asli, cipher_ubah_pesan)
+        ava_pesan = round((beda_pesan / 128) * 100, 2)
+
+        # Skenario B: Ubah 1 bit pada Kunci/Sandi
+        key_ubah = bytearray(key_bytes)
+        key_ubah[-1] = key_ubah[-1] ^ 1
+        K2, S2 = kriptografi.generate_subkeys(key_ubah)
+        cipher_ubah_key = kriptografi.encrypt_block(list(block_sampel), K2, S2)
+        beda_key = hitung_perbedaan_bit(cipher_asli, cipher_ubah_key)
+        ava_key = round((beda_key / 128) * 100, 2)
+        # ========================================================
+
         encrypted_data = bytearray()
         for i in range(0, len(padded_data), 16):
             block = padded_data[i:i+16]
@@ -116,7 +148,9 @@ def api_enkripsi():
             "filename": filename,
             "encrypted_filename": encrypted_filename,
             "hash": sha256_hash,
-            "waktu": waktu_proses
+            "waktu": waktu_proses,
+            "ava_pesan": ava_pesan, # BARU: Hasil uji Avalanche File
+            "ava_key": ava_key      # BARU: Hasil uji Avalanche Sandi
         })
     else:
         return jsonify({"error": "Hanya file PDF yang diizinkan!"}), 400
@@ -127,6 +161,9 @@ def api_blockchain():
     filename = data.get('filename')
     encrypted_filename = data.get('encrypted_filename')
     sha256_hash = data.get('hash')
+    
+    ava_pesan = data.get('ava_pesan', 'N/A')
+    ava_key = data.get('ava_key', 'N/A')
 
     if not w3.is_connected():
         return jsonify({"error": "Flask tidak terhubung ke Ganache!"}), 500
@@ -139,11 +176,12 @@ def api_blockchain():
 
         txhash_str = tx_receipt.transactionHash.hex()
 
-        # Simpan ke riwayat JSON setelah sukses masuk blockchain
         simpan_ke_riwayat({
             "filename": encrypted_filename,
             "hash": sha256_hash,
-            "txhash": txhash_str
+            "txhash": txhash_str,
+            "ava_pesan": ava_pesan, # Disisipkan ke DB
+            "ava_key": ava_key      # Disisipkan ke DB
         })
 
         return jsonify({

@@ -113,6 +113,7 @@
                                     <th>Nama File Terenkripsi</th>
                                     <th>Hash (SHA-256)</th>
                                     <th>TxHash (Blockchain)</th>
+                                    <th>Info</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
@@ -160,6 +161,47 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalAvalanche" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold">📊 Hasil Uji Avalanche Effect</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center p-4">
+                    <!-- <p class="mb-4 text-muted small">
+                        Avalanche Effect mengukur seberapa acak file terenkripsi jika input diubah 1 bit. Standar
+                        akademis
+                        yang kuat adalah mendekati 50%.
+                    </p> -->
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="card border-success h-100 shadow-sm">
+                                <div class="card-header bg-success text-white small fw-bold">File Diubah 1 Bit</div>
+                                <div class="card-body d-flex align-items-center justify-content-center">
+                                    <h3 class="card-title text-success mb-0 fw-bold" id="ava-file-val">0%</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card border-warning h-100 shadow-sm">
+                                <div class="card-header bg-warning text-dark small fw-bold">Sandi Diubah 1 Bit</div>
+                                <div class="card-body d-flex align-items-center justify-content-center">
+                                    <h3 class="card-title text-warning mb-0 fw-bold" id="ava-sandi-val">0%</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary w-100 fw-bold" data-bs-dismiss="modal">Tutup
+                        Panel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let dataDokumen = { filename: "", encrypted_filename: "", hash: "" };
 
@@ -198,12 +240,18 @@
                 const shortHash = item.hash.substring(0, 15) + "...";
                 const shortTx = item.txhash.substring(0, 15) + "...";
 
+                // Cek apakah data avalanche ada di database
+                let infoHtml = `<span class="badge bg-secondary">N/A</span>`;
+                if (item.ava_pesan && item.ava_pesan !== "undefined") {
+                    infoHtml = `<button class="btn btn-sm btn-outline-info fw-bold" title="Lihat Hasil Uji" onclick="tampilkanInfo('${item.ava_pesan}', '${item.ava_key}')">ℹ️ Info</button>`;
+                }
+
                 tbody.innerHTML += `<tr>
                 <td>${index + 1}</td>
                 <td class="fw-bold">${item.filename}</td>
                 <td class="hash-text" title="${item.hash}">${shortHash}</td>
                 <td class="tx-text" title="${item.txhash}">${shortTx}</td>
-                <td><span class="badge bg-success">Terkunci</span></td>
+                <td>${infoHtml}</td> <td><span class="badge bg-success">Terkunci</span></td>
             </tr>`;
             });
         }
@@ -237,6 +285,8 @@
                     dataDokumen.filename = result.filename;
                     dataDokumen.encrypted_filename = result.encrypted_filename;
                     dataDokumen.hash = result.hash;
+                    dataDokumen.ava_pesan = result.ava_pesan;
+                    dataDokumen.ava_key = result.ava_key;
 
                     document.getElementById('alert-blockchain').classList.add('d-none');
                     document.getElementById('btn-blockchain').disabled = false;
@@ -313,6 +363,16 @@
         });
 
         window.onload = muatRiwayat;
+        // Fungsi untuk memunculkan pop-up Info Kriptografi
+        function tampilkanInfo(avaPesan, avaKey) {
+            // 1. Masukkan nilai persentase ke dalam teks di HTML Card
+            document.getElementById('ava-file-val').innerText = avaPesan + "%";
+            document.getElementById('ava-sandi-val').innerText = avaKey + "%";
+
+            // 2. Panggil dan tampilkan Card Pop-up (Modal) Bootstrap
+            const myModal = new bootstrap.Modal(document.getElementById('modalAvalanche'));
+            myModal.show();
+        }
 
         function setProgressVerifikasi(percent, text, colorClass) {
             const pContainer = document.getElementById('progress-container-verifikasi');
@@ -359,6 +419,7 @@
             }
         });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>
