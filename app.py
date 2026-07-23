@@ -168,5 +168,106 @@ def api_riwayat():
                 pass
     return jsonify({"riwayat": []})
 
+@app.route('/api/verifikasi', methods=['POST'])
+def api_verifikasi():
+    try:
+        # 1. VALIDASI INPUT FILE & PASSWORD
+        if 'file_pdf' not in request.files:
+            return jsonify({'error': 'Tidak ada file yang diunggah!'}), 400
+
+        file = request.files['file_pdf']
+        password = request.form.get('password')
+
+        if not file or file.filename == '':
+            return jsonify({'error': 'File belum dipilih!'}), 400
+
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        
+        # PINDAHKAN FILE.SAVE KE DALAM TRY AGAR JIKA PENDING/LOCKED TIDAK MEMBUAT FLASK CRASH
+        file.save(filepath)
+
+        # OTOMATISASI: Ambil ID Dokumen asli dengan menghapus prefix 'ENCRYPTED_'
+        if filename.startswith('ENCRYPTED_'):
+            id_dokumen = filename.replace('ENCRYPTED_', '', 1)
+        else:
+            id_dokumen = filename
+
+        start_time = time.time()
+
+        # 2. BACA FILE TERENKRIPSI & HITUNG HASH SHA-256
+        with open(filepath, 'rb') as f:
+            encrypted_data = f.read()
+
+        if len(encrypted_data) == 0:
+            return jsonify({'error': 'File terenkripsi kosong!'}), 400
+
+        sha256_hash = hashlib.sha256(encrypted_data).hexdigest()
+
+        # 3. VERIFIKASI KE BLOCKCHAIN GANACHE
+        if not w3.is_connected():
+            return jsonify({'error': 'Flask tidak terhubung ke Ganache!'}), 500
+
+        hash_di_blockchain = contract.functions.ambilHashDokumen(id_dokumen).call()
+
+        if not hash_di_blockchain:
+            return jsonify({
+                'error': f"Dokumen '{id_dokumen}' tidak ditemukan dalam catatan Blockchain!"
+            }), 404
+
+        if sha256_hash != hash_di_blockchain:
+            return jsonify({
+                'error': 'INTEGRITAS GAGAL! Hash file tidak cocok dengan catatan Blockchain. File telah dimanipulasi/palsu!'
+            }), 400
+
+        # 4. PROSES DEKRIPSI TWOFISH
+        key_bytes = prepare_key(password)
+        K, S = kriptografi.generate_subkeys(key_bytes)
+
+        decrypted_data = bytearray()
+        for i in range(0, len(encrypted_data), 16):
+            block = encrypted_data[i:i + 16]
+            decrypted_block = kriptografi.decrypt_block(list(block), K, S)
+            decrypted_data.extend(decrypted_block)
+
+        # 5. CEK KEVALIDAN KATA SANDI (PADDING & MAGIC BYTES HEADER PDF)
+        if len(decrypted_data) == 0:
+            return jsonify({'error': 'Kata sandi salah!'}), 400
+
+        pad_len = decrypted_data[-1]
+
+        # Validasi angka padding PKCS#7 (1 s/d 16)
+        if pad_len < 1 or pad_len > 16 or pad_len > len(decrypted_data):
+            return jsonify({'error': 'KATA SANDI SALAH! Gagal membuka enkripsi dokumen.'}), 400
+
+        decrypted_data_unpadded = decrypted_data[:-pad_len]
+
+        # Validasi Header PDF (Magic Bytes harus diawali %PDF-)
+        if not decrypted_data_unpadded.startswith(b'%PDF-'):
+            return jsonify({'error': 'KATA SANDI SALAH! File hasil dekripsi bukan dokumen PDF yang valid.'}), 400
+
+        # Simpan file jika kata sandi & hash valid
+        decrypted_filename = 'DECRYPTED_' + id_dokumen
+        decrypted_filepath = os.path.join(app.config['UPLOAD_FOLDER'], decrypted_filename)
+
+        with open(decrypted_filepath, 'wb') as f:
+            f.write(decrypted_data_unpadded)
+
+        waktu_proses = round(time.time() - start_time, 4)
+
+        return jsonify({
+            'status': 'success',
+            'pesan': 'Verifikasi Valid & Dekripsi Berhasil!',
+            'hash': sha256_hash,
+            'decrypted_filename': decrypted_filename,
+            'waktu': waktu_proses,
+        })
+
+    except Exception as e:
+        # Menangkap semua error agar Flask TETAP HIDUP dan mengirim pesan ke browser
+        return jsonify({
+            'error': f'Gagal melakukan proses verifikasi/dekripsi: {str(e)}'
+        }), 500
+    
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)
