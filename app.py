@@ -29,7 +29,7 @@ ganache_url = "http://127.0.0.1:7545"
 w3 = Web3(Web3.HTTPProvider(ganache_url))
 
 # TODO: MASUKKAN ALAMAT KONTRAKMU DI BAWAH INI
-contract_address = "0xB84307791934cEd3ec4E15D53e8879b6cA0AF550"
+contract_address = "0x81CE65Ddf38D4F858E167ccFBa43c79643fD1511"
 
 # ABI Standar dari SistemSkripsiPDF.sol (Sudah diekstrak untukmu)
 contract_abi = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"string","name":"idDokumen","type":"string"}],"name":"ambilHashDokumen","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"idDokumen","type":"string"},{"internalType":"string","name":"hashPDF","type":"string"}],"name":"simpanHashDokumen","outputs":[],"stateMutability":"nonpayable","type":"function"}]
@@ -106,10 +106,7 @@ def api_enkripsi():
         # ========================================================
         # 🧪 UJI AVALANCHE EFFECT (SAMPEL 1 BLOK PERTAMA DARI PDF)
         # ========================================================
-        # Ambil sampel 1 blok pertama (16 byte) dari padded_data
         block_sampel = bytearray(padded_data[:16])
-
-        # Enkripsi Asli untuk blok pertama
         cipher_asli = kriptografi.encrypt_block(list(block_sampel), K, S)
 
         # Skenario A: Ubah 1 bit pada File/Pesan
@@ -142,6 +139,9 @@ def api_enkripsi():
             
         waktu_proses = round(time.time() - start_time, 4)
         sha256_hash = hashlib.sha256(encrypted_data).hexdigest()
+        
+        # [BARU] Hitung Ukuran File dalam Kilobyte (KB)
+        ukuran_kb = round(os.path.getsize(filepath) / 1024, 2)
 
         return jsonify({
             "status": "success",
@@ -149,11 +149,13 @@ def api_enkripsi():
             "encrypted_filename": encrypted_filename,
             "hash": sha256_hash,
             "waktu": waktu_proses,
-            "ava_pesan": ava_pesan, # BARU: Hasil uji Avalanche File
-            "ava_key": ava_key      # BARU: Hasil uji Avalanche Sandi
+            "ava_pesan": ava_pesan, 
+            "ava_key": ava_key,
+            "ukuran_kb": ukuran_kb  # [BARU] Kirim ukuran ke frontend
         })
     else:
         return jsonify({"error": "Hanya file PDF yang diizinkan!"}), 400
+
 
 @app.route('/api/blockchain', methods=['POST'])
 def api_blockchain():
@@ -164,6 +166,10 @@ def api_blockchain():
     
     ava_pesan = data.get('ava_pesan', 'N/A')
     ava_key = data.get('ava_key', 'N/A')
+    
+    # [BARU] Tangkap data Ukuran dan Waktu Enkripsi dari Frontend
+    ukuran_kb = data.get('ukuran_kb', '0')
+    waktu_enkripsi = data.get('waktu_enkripsi', '0')
 
     if not w3.is_connected():
         return jsonify({"error": "Flask tidak terhubung ke Ganache!"}), 500
@@ -172,16 +178,22 @@ def api_blockchain():
         start_time = time.time()
         tx_hash = contract.functions.simpanHashDokumen(filename, sha256_hash).transact({'from': admin_account})
         tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        waktu_proses = round(time.time() - start_time, 4)
+        
+        # Ini adalah waktu khusus untuk eksekusi ke Web3
+        waktu_simpan = round(time.time() - start_time, 4)
 
         txhash_str = tx_receipt.transactionHash.hex()
 
+        # [BARU] Simpan SELURUH data secara lengkap ke JSON
         simpan_ke_riwayat({
             "filename": encrypted_filename,
             "hash": sha256_hash,
             "txhash": txhash_str,
-            "ava_pesan": ava_pesan, # Disisipkan ke DB
-            "ava_key": ava_key      # Disisipkan ke DB
+            "ava_pesan": ava_pesan, 
+            "ava_key": ava_key,
+            "ukuran_kb": ukuran_kb,
+            "waktu_enkripsi": waktu_enkripsi,
+            "waktu_simpan": waktu_simpan
         })
 
         return jsonify({
@@ -189,7 +201,7 @@ def api_blockchain():
             "block": tx_receipt.blockNumber,
             "txhash": txhash_str,
             "gas": tx_receipt.gasUsed,
-            "waktu": waktu_proses
+            "waktu": waktu_simpan
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500

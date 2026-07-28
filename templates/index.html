@@ -42,7 +42,7 @@
 <body>
 
     <div class="container mt-4">
-        <h2 class="text-center mb-4">🛡️ Panel Pengamanan Dokumen Skripsi</h2>
+        <h2 class="text-center mb-4">Pengamanan Dokumen Skripsi</h2>
 
         <div class="row">
             <div class="col-md-6 mb-4">
@@ -113,7 +113,7 @@
                                     <th>Nama File Terenkripsi</th>
                                     <th>Hash (SHA-256)</th>
                                     <th>TxHash (Blockchain)</th>
-                                    <th>Info</th>
+                                    <th>Detail</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
@@ -126,7 +126,7 @@
         </div>
         <div class="card shadow-sm mb-4 border-info">
             <div class="card-header bg-info text-white fw-bold">
-                🛡️ Verifikasi Blockchain & Dekripsi PDF
+                Verifikasi Blockchain & Dekripsi PDF
             </div>
             <div class="card-body">
                 <form id="form-verifikasi">
@@ -140,8 +140,7 @@
                             placeholder="Masukkan kata sandi..." required>
                     </div>
                     <button type="submit" id="btn-verifikasi" class="btn btn-info text-white w-100 fw-bold">Verifikasi &
-                        Buka
-                        Dokumen</button>
+                        Buka Dokumen</button>
                 </form>
 
                 <div class="progress mt-3 d-none" id="progress-container-verifikasi" style="height: 25px;">
@@ -161,42 +160,62 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modalAvalanche" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content shadow-lg border-0">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold">📊 Hasil Uji Avalanche Effect</h5>
+    <div class="modal fade" id="modalAnalisisKripto" tabindex="-1" aria-labelledby="modalAnalisisLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: fit-content; min-width: 550px;">
+            <div class="modal-content shadow border-0">
+
+                <div class="modal-header bg-dark text-white py-3">
+                    <h5 class="modal-title" id="modalAnalisisLabel">
+                        <i class="bi bi-file-earmark-text-fill me-2"></i>Detail Analisis Kriptografi
+                    </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                         aria-label="Close"></button>
                 </div>
-                <div class="modal-body text-center p-4">
-                    <!-- <p class="mb-4 text-muted small">
-                        Avalanche Effect mengukur seberapa acak file terenkripsi jika input diubah 1 bit. Standar
-                        akademis
-                        yang kuat adalah mendekati 50%.
-                    </p> -->
-                    <div class="row">
-                        <div class="col-6">
-                            <div class="card border-success h-100 shadow-sm">
-                                <div class="card-header bg-success text-white small fw-bold">File Diubah 1 Bit</div>
-                                <div class="card-body d-flex align-items-center justify-content-center">
-                                    <h3 class="card-title text-success mb-0 fw-bold" id="ava-file-val">0%</h3>
-                                </div>
-                            </div>
+
+                <div class="modal-body bg-white p-4">
+                    <div class="fs-5" style="line-height: 2; color: #333; white-space: nowrap;">
+
+                        <div class="d-flex">
+                            <span style="min-width: 180px;">Nama File</span>
+                            <span>: <strong id="nama-file-val">-</strong></span>
                         </div>
-                        <div class="col-6">
-                            <div class="card border-warning h-100 shadow-sm">
-                                <div class="card-header bg-warning text-dark small fw-bold">Sandi Diubah 1 Bit</div>
-                                <div class="card-body d-flex align-items-center justify-content-center">
-                                    <h3 class="card-title text-warning mb-0 fw-bold" id="ava-sandi-val">0%</h3>
-                                </div>
-                            </div>
+
+                        <div class="d-flex">
+                            <span style="min-width: 180px;">Ukuran File</span>
+                            <span>: <strong id="ukuran-asli-val">-</strong></span>
                         </div>
+
+                        <div class="d-flex">
+                            <span style="min-width: 180px;">Waktu Enkripsi</span>
+                            <span>: <strong id="waktu-enkripsi-val">0.00 detik</strong></span>
+                        </div>
+
+                        <div class="d-flex">
+                            <span style="min-width: 180px;">Waktu Simpan</span>
+                            <span>: <strong id="waktu-simpan-val">0.00 detik</strong></span>
+                        </div>
+
+                        <div class="d-flex">
+                            <span style="min-width: 180px;">Uji Avalanche File</span>
+                            <span>: <strong id="ava-file-val">0.00%</strong></span>
+                        </div>
+
+                        <div class="d-flex">
+                            <span style="min-width: 180px;">Uji Avalanche Sandi</span>
+                            <span>: <strong id="ava-sandi-val">0.00%</strong></span>
+                        </div>
+
+                        <div class="d-flex">
+                            <span style="min-width: 180px;">TxHash</span>
+                            <span>: <code id="tx-hash-val" class="text-primary fw-bold fs-6">0x...</code></span>
+                        </div>
+
                     </div>
                 </div>
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-secondary w-100 fw-bold" data-bs-dismiss="modal">Tutup
-                        Panel</button>
+
+                <div class="modal-footer bg-light p-2">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
                 </div>
             </div>
         </div>
@@ -243,7 +262,10 @@
                 // Cek apakah data avalanche ada di database
                 let infoHtml = `<span class="badge bg-secondary">N/A</span>`;
                 if (item.ava_pesan && item.ava_pesan !== "undefined") {
-                    infoHtml = `<button class="btn btn-sm btn-outline-info fw-bold" title="Lihat Hasil Uji" onclick="tampilkanInfo('${item.ava_pesan}', '${item.ava_key}')">ℹ️ Info</button>`;
+                    infoHtml = `<button class="btn btn-sm btn-outline-info fw-bold" title="Lihat Detail Analisis" 
+                onclick="tampilkanInfo('${item.filename}', '${item.ukuran_kb}', '${item.waktu_enkripsi}', '${item.waktu_simpan}', '${item.ava_pesan}', '${item.ava_key}', '${item.txhash}')">
+                <i class="bi bi-info-circle"></i> Detail
+                </button>`;
                 }
 
                 tbody.innerHTML += `<tr>
@@ -287,6 +309,8 @@
                     dataDokumen.hash = result.hash;
                     dataDokumen.ava_pesan = result.ava_pesan;
                     dataDokumen.ava_key = result.ava_key;
+                    dataDokumen.ukuran_kb = result.ukuran_kb;
+                    dataDokumen.waktu_enkripsi = result.waktu;
 
                     document.getElementById('alert-blockchain').classList.add('d-none');
                     document.getElementById('btn-blockchain').disabled = false;
@@ -364,14 +388,29 @@
 
         window.onload = muatRiwayat;
         // Fungsi untuk memunculkan pop-up Info Kriptografi
-        function tampilkanInfo(avaPesan, avaKey) {
-            // 1. Masukkan nilai persentase ke dalam teks di HTML Card
+        function tampilkanInfo(namaFile, ukuranFile, waktuEnkripsi, waktuSimpan, avaPesan, avaKey, txHash) {
+
+            // 1. Memasukkan data Detail File & Performa
+            document.getElementById('nama-file-val').innerText = namaFile;
+            document.getElementById('ukuran-asli-val').innerText = ukuranFile + " KB";
+            document.getElementById('waktu-enkripsi-val').innerText = waktuEnkripsi + " detik";
+            document.getElementById('waktu-simpan-val').innerText = waktuSimpan + " detik";
+
+            // 2. Memasukkan data Avalanche Effect
             document.getElementById('ava-file-val').innerText = avaPesan + "%";
             document.getElementById('ava-sandi-val').innerText = avaKey + "%";
 
-            // 2. Panggil dan tampilkan Card Pop-up (Modal) Bootstrap
-            const myModal = new bootstrap.Modal(document.getElementById('modalAvalanche'));
-            myModal.show();
+            // Warnai metrik Avalanche (Hijau jika dekat 50%, Merah jika jauh)
+            let nilaiPesan = parseFloat(avaPesan);
+            let warnaPesan = (nilaiPesan >= 45 && nilaiPesan <= 55) ? "text-success" : "text-danger";
+            document.getElementById('ava-file-val').className = `fw-bold mb-0 ${warnaPesan}`;
+
+            // 3. Memasukkan data Blockchain
+            document.getElementById('tx-hash-val').innerText = txHash;
+
+            // Memunculkan Modal Bootstrap
+            let modalAnalisis = new bootstrap.Modal(document.getElementById('modalAnalisisKripto'));
+            modalAnalisis.show();
         }
 
         function setProgressVerifikasi(percent, text, colorClass) {
