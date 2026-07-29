@@ -7,6 +7,9 @@ from web3 import Web3
 import kriptografi 
 import time
 import json
+from dotenv import load_dotenv  
+
+load_dotenv()
 
 def hitung_perbedaan_bit(byte_array1, byte_array2):
     diff = 0
@@ -24,21 +27,27 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 # ==========================================
 # 🔗 KONFIGURASI WEB3 & BLOCKCHAIN (GANACHE)
 # ==========================================
-# Ganti URL ini jika Ganache milikmu menggunakan port 8545
-ganache_url = "http://127.0.0.1:7545" 
+# [DIUBAH] Mengambil URL dari .env, default ke port 7545 jika tidak ada
+ganache_url = os.getenv("GANACHE_URL", "http://127.0.0.1:7545")
 w3 = Web3(Web3.HTTPProvider(ganache_url))
 
-# TODO: MASUKKAN ALAMAT KONTRAKMU DI BAWAH INI
-contract_address = "0x81CE65Ddf38D4F858E167ccFBa43c79643fD1511"
+# [DIUBAH] Mengambil Address Kontrak dari .env (Tanpa hardcode!)
+contract_address = os.getenv("CONTRACT_ADDRESS")
 
-# ABI Standar dari SistemSkripsiPDF.sol (Sudah diekstrak untukmu)
+# ABI Standar dari SistemSkripsiPDF.sol
 contract_abi = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"string","name":"idDokumen","type":"string"}],"name":"ambilHashDokumen","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"idDokumen","type":"string"},{"internalType":"string","name":"hashPDF","type":"string"}],"name":"simpanHashDokumen","outputs":[],"stateMutability":"nonpayable","type":"function"}]
 
 # Inisialisasi Koneksi Kontrak
+admin_account = None
 if w3.is_connected():
-    contract = w3.eth.contract(address=contract_address, abi=contract_abi)
-    # Menggunakan dompet pertama di Ganache sebagai "Manajer Sistem" (owner)
-    admin_account = w3.eth.accounts[0] 
+    # [BARU] Pengecekan apakah contract address sudah diisi di .env
+    if not contract_address:
+        print("⚠️ PERINGATAN: CONTRACT_ADDRESS belum diisi di file .env!")
+    else:
+        contract = w3.eth.contract(address=contract_address, abi=contract_abi)
+        # Menggunakan dompet pertama di Ganache sebagai "Manajer Sistem" (owner)
+        admin_account = w3.eth.accounts[0] 
+        print(f"✅ Terhubung ke Blockchain! Kontrak: {contract_address}")
 else:
     print("⚠️ PERINGATAN: Flask tidak terhubung ke Ganache!")
 
@@ -58,7 +67,7 @@ def prepare_key(password):
     return list(key_bytes)
 
 #==========================================
-#🌐 RUTE ANTARMUKA WEB & API (DIPERBARUI)
+#🌐 RUTE ANTARMUKA WEB & API 
 #==========================================
 RIWAYAT_FILE = 'database_riwayat.json'
 
@@ -140,7 +149,6 @@ def api_enkripsi():
         waktu_proses = round(time.time() - start_time, 4)
         sha256_hash = hashlib.sha256(encrypted_data).hexdigest()
         
-        # [BARU] Hitung Ukuran File dalam Kilobyte (KB)
         ukuran_kb = round(os.path.getsize(filepath) / 1024, 2)
 
         return jsonify({
@@ -151,7 +159,7 @@ def api_enkripsi():
             "waktu": waktu_proses,
             "ava_pesan": ava_pesan, 
             "ava_key": ava_key,
-            "ukuran_kb": ukuran_kb  # [BARU] Kirim ukuran ke frontend
+            "ukuran_kb": ukuran_kb  
         })
     else:
         return jsonify({"error": "Hanya file PDF yang diizinkan!"}), 400
@@ -166,8 +174,6 @@ def api_blockchain():
     
     ava_pesan = data.get('ava_pesan', 'N/A')
     ava_key = data.get('ava_key', 'N/A')
-    
-    # [BARU] Tangkap data Ukuran dan Waktu Enkripsi dari Frontend
     ukuran_kb = data.get('ukuran_kb', '0')
     waktu_enkripsi = data.get('waktu_enkripsi', '0')
 
@@ -179,12 +185,9 @@ def api_blockchain():
         tx_hash = contract.functions.simpanHashDokumen(filename, sha256_hash).transact({'from': admin_account})
         tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
         
-        # Ini adalah waktu khusus untuk eksekusi ke Web3
         waktu_simpan = round(time.time() - start_time, 4)
-
         txhash_str = tx_receipt.transactionHash.hex()
 
-        # [BARU] Simpan SELURUH data secara lengkap ke JSON
         simpan_ke_riwayat({
             "filename": encrypted_filename,
             "hash": sha256_hash,
@@ -208,7 +211,6 @@ def api_blockchain():
 
 @app.route('/api/riwayat', methods=['GET'])
 def api_riwayat():
-    # Membaca riwayat dari file JSON
     if os.path.exists(RIWAYAT_FILE):
         with open(RIWAYAT_FILE, 'r') as f:
             try:
@@ -221,7 +223,6 @@ def api_riwayat():
 @app.route('/api/verifikasi', methods=['POST'])
 def api_verifikasi():
     try:
-        # 1. VALIDASI INPUT FILE & PASSWORD
         if 'file_pdf' not in request.files:
             return jsonify({'error': 'Tidak ada file yang diunggah!'}), 400
 
@@ -234,10 +235,8 @@ def api_verifikasi():
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         
-        # PINDAHKAN FILE.SAVE KE DALAM TRY AGAR JIKA PENDING/LOCKED TIDAK MEMBUAT FLASK CRASH
         file.save(filepath)
 
-        # OTOMATISASI: Ambil ID Dokumen asli dengan menghapus prefix 'ENCRYPTED_'
         if filename.startswith('ENCRYPTED_'):
             id_dokumen = filename.replace('ENCRYPTED_', '', 1)
         else:
@@ -245,7 +244,6 @@ def api_verifikasi():
 
         start_time = time.time()
 
-        # 2. BACA FILE TERENKRIPSI & HITUNG HASH SHA-256
         with open(filepath, 'rb') as f:
             encrypted_data = f.read()
 
@@ -254,7 +252,6 @@ def api_verifikasi():
 
         sha256_hash = hashlib.sha256(encrypted_data).hexdigest()
 
-        # 3. VERIFIKASI KE BLOCKCHAIN GANACHE
         if not w3.is_connected():
             return jsonify({'error': 'Flask tidak terhubung ke Ganache!'}), 500
 
@@ -270,7 +267,6 @@ def api_verifikasi():
                 'error': 'INTEGRITAS GAGAL! Hash file tidak cocok dengan catatan Blockchain. File telah dimanipulasi/palsu!'
             }), 400
 
-        # 4. PROSES DEKRIPSI TWOFISH
         key_bytes = prepare_key(password)
         K, S = kriptografi.generate_subkeys(key_bytes)
 
@@ -280,23 +276,19 @@ def api_verifikasi():
             decrypted_block = kriptografi.decrypt_block(list(block), K, S)
             decrypted_data.extend(decrypted_block)
 
-        # 5. CEK KEVALIDAN KATA SANDI (PADDING & MAGIC BYTES HEADER PDF)
         if len(decrypted_data) == 0:
             return jsonify({'error': 'Kata sandi salah!'}), 400
 
         pad_len = decrypted_data[-1]
 
-        # Validasi angka padding PKCS#7 (1 s/d 16)
         if pad_len < 1 or pad_len > 16 or pad_len > len(decrypted_data):
             return jsonify({'error': 'KATA SANDI SALAH! Gagal membuka enkripsi dokumen.'}), 400
 
         decrypted_data_unpadded = decrypted_data[:-pad_len]
 
-        # Validasi Header PDF (Magic Bytes harus diawali %PDF-)
         if not decrypted_data_unpadded.startswith(b'%PDF-'):
             return jsonify({'error': 'KATA SANDI SALAH! File hasil dekripsi bukan dokumen PDF yang valid.'}), 400
 
-        # Simpan file jika kata sandi & hash valid
         decrypted_filename = 'DECRYPTED_' + id_dokumen
         decrypted_filepath = os.path.join(app.config['UPLOAD_FOLDER'], decrypted_filename)
 
@@ -314,7 +306,6 @@ def api_verifikasi():
         })
 
     except Exception as e:
-        # Menangkap semua error agar Flask TETAP HIDUP dan mengirim pesan ke browser
         return jsonify({
             'error': f'Gagal melakukan proses verifikasi/dekripsi: {str(e)}'
         }), 500

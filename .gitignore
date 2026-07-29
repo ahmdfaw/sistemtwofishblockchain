@@ -12,3 +12,6 @@ env/
 
 # Mengabaikan file database lokal (opsional, agar data riwayat tidak ikut terunggah)
 database_riwayat.json
+
+# Environments
+.env
