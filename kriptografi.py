@@ -131,6 +131,15 @@ def word_to_bytes(word):
     """
     return [word & 0xFF, (word >> 8) & 0xFF, (word >> 16) & 0xFF, (word >> 24) & 0xFF]
 
+def format_word(word):
+    return f"0x{word & 0xFFFFFFFF:08X}"
+
+def format_byte_list(byte_values):
+    return " ".join(f"{b & 0xFF:02X}" for b in byte_values)
+
+def format_word_list(words):
+    return [format_word(word) for word in words]
+
 # --- MODUL 3: FUNGSI JANTUNG (h-function & PHT) ---
 
 def h_func(X, L):
@@ -196,11 +205,12 @@ def rs_mult(row, col):
         res ^= gf_mult(row[j], col[j])
     return res
 
-def generate_subkeys(key_bytes):
+def generate_subkeys(key_bytes, trace=None):
     """
     Menghasilkan 40 sub-kunci (K) dan vektor S-Box dinamis (S) dari Kunci Rahasia.
     Sistem skripsi ini diatur menggunakan Kunci 128-bit (16 byte).
     """
+    key_bytes = list(key_bytes)
     k = len(key_bytes) // 8  # Untuk kunci 128-bit (16 byte), nilai k = 2
     
     # 1. Pecah byte kunci menjadi 32-bit words (M)
@@ -237,6 +247,32 @@ def generate_subkeys(key_bytes):
         for j in range(4):
             s_word.append(rs_mult(RS_MATRIX[j], col))
         S.append(bytes_to_word(s_word[0], s_word[1], s_word[2], s_word[3]))
+
+    if trace is not None:
+        trace["key_schedule"] = {
+            "original_key_hex": format_byte_list(key_bytes),
+            "key_length_bits": len(key_bytes) * 8,
+            "key_words": format_word_list(M),
+            "even_words_me": format_word_list(Me),
+            "odd_words_mo": format_word_list(Mo),
+            "subkeys": [
+                {"index": idx, "name": f"K{idx}", "value": format_word(value)}
+                for idx, value in enumerate(K)
+            ],
+            "input_whitening_keys": format_word_list(K[:4]),
+            "output_whitening_keys": format_word_list(K[4:8]),
+            "round_keys": [
+                {
+                    "round": i + 1,
+                    "k0_index": 2 * i + 8,
+                    "k0": format_word(K[2 * i + 8]),
+                    "k1_index": 2 * i + 9,
+                    "k1": format_word(K[2 * i + 9]),
+                }
+                for i in range(16)
+            ],
+            "sbox_keys": format_word_list(S),
+        }
         
     return K, S
 
@@ -248,47 +284,153 @@ def g_func(X, S):
     """
     return h_func(X, S)
 
-def encrypt_block(plaintext_bytes, K, S):
+def encrypt_block(plaintext_bytes, K, S, trace=None):
     """
     Enkripsi 1 blok data (16 byte / 128-bit) menggunakan algoritma Twofish.
     """
     # 1. Pecah 16 byte menjadi 4 word (Little Endian)
+    plaintext_bytes = list(plaintext_bytes)
     P = []
     for i in range(0, 16, 4):
         P.append(bytes_to_word(plaintext_bytes[i], plaintext_bytes[i+1], plaintext_bytes[i+2], plaintext_bytes[i+3]))
+
+    if trace is not None:
+        trace["block_plaintext_hex"] = format_byte_list(plaintext_bytes)
+        trace["input_whitening"] = {
+            "plaintext_words": format_word_list(P),
+            "whitening_keys": format_word_list(K[:4]),
+            "operations": [],
+        }
     
     # 2. Input Pre-whitening (XOR dengan K0 - K3)
     for i in range(4):
+        before = P[i]
         P[i] ^= K[i]
+        if trace is not None:
+            trace["input_whitening"]["operations"].append({
+                "word": f"P{i}",
+                "plaintext_word": format_word(before),
+                "key": f"K{i}",
+                "key_value": format_word(K[i]),
+                "result": format_word(P[i]),
+                "formula": f"{format_word(before)} XOR {format_word(K[i])} = {format_word(P[i])}",
+            })
+
+    if trace is not None:
+        trace["input_whitening"]["result_words"] = format_word_list(P)
+        trace["feistel_rounds"] = []
     
     # 3. 16 Putaran Jaringan Feistel
     for r in range(16):
+        round_input = P.copy()
         t0 = g_func(P[0], S)
-        t1 = g_func(rol(P[1], 8), S)
+        g1_input = rol(P[1], 8)
+        t1 = g_func(g1_input, S)
         
         # PHT dan penambahan sub-kunci
+        pht0 = (t0 + t1) & 0xFFFFFFFF
+        pht1 = (t0 + 2 * t1) & 0xFFFFFFFF
         F0 = (t0 + t1 + K[2 * r + 8]) & 0xFFFFFFFF
         F1 = (t0 + 2 * t1 + K[2 * r + 9]) & 0xFFFFFFFF
         
         # XOR dengan separuh blok lainnya dan putar (Shift)
+        right0_before = P[2]
+        right1_before = P[3]
+        xor0 = P[2] ^ F0
+        rot1 = rol(P[3], 1)
         P[2] = ror(P[2] ^ F0, 1)
         P[3] = rol(P[3], 1) ^ F1
+
+        state_before_swap = P.copy()
+        swapped = r < 15
         
         # Swap untuk putaran berikutnya (kecuali pada putaran terakhir)
         if r < 15:
             P[0], P[1], P[2], P[3] = P[2], P[3], P[0], P[1]
-            
+
+        if trace is not None:
+            trace["feistel_rounds"].append({
+                "round": r + 1,
+                "input_left": format_word_list(round_input[:2]),
+                "input_right": format_word_list(round_input[2:]),
+                "input_state": format_word_list(round_input),
+                "g_function": {
+                    "g0_input": format_word(round_input[0]),
+                    "g1_input": format_word(g1_input),
+                    "g0_output_t0": format_word(t0),
+                    "g1_output_t1": format_word(t1),
+                },
+                "pht": {
+                    "pht0": format_word(pht0),
+                    "pht1": format_word(pht1),
+                    "description": "PHT digabung dalam perhitungan F0 dan F1 pada source code.",
+                },
+                "round_keys": {
+                    "k0": f"K{2 * r + 8}",
+                    "k0_value": format_word(K[2 * r + 8]),
+                    "k1": f"K{2 * r + 9}",
+                    "k1_value": format_word(K[2 * r + 9]),
+                },
+                "f_values": {
+                    "F0": format_word(F0),
+                    "F1": format_word(F1),
+                    "F0_formula": f"{format_word(t0)} + {format_word(t1)} + {format_word(K[2 * r + 8])}",
+                    "F1_formula": f"{format_word(t0)} + 2*{format_word(t1)} + {format_word(K[2 * r + 9])}",
+                },
+                "xor": {
+                    "right0_before": format_word(right0_before),
+                    "right1_before": format_word(right1_before),
+                    "right0_xor_f0": format_word(xor0),
+                    "right0_after_ror1": format_word(state_before_swap[2]),
+                    "right1_rol1": format_word(rot1),
+                    "right1_after_xor_f1": format_word(state_before_swap[3]),
+                    "right0_formula": f"ROR(({format_word(right0_before)} XOR {format_word(F0)}), 1)",
+                    "right1_formula": f"ROL({format_word(right1_before)}, 1) XOR {format_word(F1)}",
+                },
+                "swap": {
+                    "applied": swapped,
+                    "before_swap": format_word_list(state_before_swap),
+                    "after_swap": format_word_list(P),
+                },
+                "output_round": format_word_list(P),
+            })
+             
     # 4. Output Post-whitening (XOR dengan K4 - K7)
+    if trace is not None:
+        trace["output_whitening"] = {
+            "state_before_output_whitening": format_word_list(P),
+            "whitening_keys": format_word_list(K[4:8]),
+            "operations": [],
+        }
+
     C = [0] * 4
     C[0] = P[2] ^ K[4]
     C[1] = P[3] ^ K[5]
     C[2] = P[0] ^ K[6]
     C[3] = P[1] ^ K[7]
+
+    if trace is not None:
+        output_sources = [2, 3, 0, 1]
+        for i, source_idx in enumerate(output_sources):
+            trace["output_whitening"]["operations"].append({
+                "cipher_word": f"C{i}",
+                "state_word": f"P{source_idx}",
+                "state_value": format_word(P[source_idx]),
+                "key": f"K{i + 4}",
+                "key_value": format_word(K[i + 4]),
+                "result": format_word(C[i]),
+                "formula": f"{format_word(P[source_idx])} XOR {format_word(K[i + 4])} = {format_word(C[i])}",
+            })
+        trace["output_whitening"]["result_words"] = format_word_list(C)
     
     # 5. Gabungkan kembali ke bentuk byte array
     ciphertext = []
     for i in range(4):
         ciphertext.extend(word_to_bytes(C[i]))
+
+    if trace is not None:
+        trace["ciphertext_hex"] = format_byte_list(ciphertext)
+        trace["ciphertext_words"] = format_word_list(C)
     return ciphertext
 
 def decrypt_block(ciphertext_bytes, K, S):

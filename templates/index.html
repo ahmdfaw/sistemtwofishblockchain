@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Keamanan PDF Twofish & Blockchain</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         body {
             background-color: #f4f6f9;
@@ -35,6 +36,46 @@
             font-size: 0.9em;
             color: #0d6efd;
             word-break: break-all;
+        }
+
+        .trace-step {
+            min-height: 34px;
+        }
+
+        .trace-step.active {
+            color: #0d6efd;
+            font-weight: 700;
+        }
+
+        .trace-step.done {
+            color: #198754;
+            font-weight: 700;
+        }
+
+        .trace-data-box {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .trace-code {
+            font-family: Consolas, monospace;
+            font-size: 0.86rem;
+            word-break: break-all;
+        }
+
+        .trace-round {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 14px;
+            background: #fff;
+        }
+
+        .trace-scroll {
+            max-height: 58vh;
+            overflow-y: auto;
+            padding-right: 4px;
         }
     </style>
 </head>
@@ -71,6 +112,10 @@
 
                         <label class="form-label fw-bold small mb-1">Log Proses Enkripsi:</label>
                         <div id="log-enkripsi" class="log-box">Sistem siap...<br></div>
+                        <button type="button" class="btn btn-outline-primary w-100 mt-3 d-none"
+                            id="btn-lihat-trace">
+                            <i class="bi bi-diagram-3 me-1"></i>Lihat Visualisasi Twofish
+                        </button>
                     </div>
                 </div>
             </div>
@@ -221,6 +266,57 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalTwofishWizard" tabindex="-1" aria-labelledby="modalTwofishWizardLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content shadow border-0">
+                <div class="modal-header bg-primary text-white">
+                    <div>
+                        <h5 class="modal-title fw-bold" id="modalTwofishWizardLabel">
+                            <i class="bi bi-diagram-3-fill me-2"></i>Visualisasi Proses Enkripsi Twofish
+                        </h5>
+                        <div class="small opacity-75">Trace diambil dari blok pertama pada proses enkripsi yang berjalan.</div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-4">
+                        <div class="col-lg-3">
+                            <div class="trace-data-box">
+                                <div class="small text-uppercase text-muted fw-bold mb-3">Progress Wizard</div>
+                                <div class="d-grid gap-2" id="twofish-step-list"></div>
+                                <div class="progress mt-3" style="height: 8px;">
+                                    <div class="progress-bar bg-primary" id="twofish-wizard-progress" style="width: 25%;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-9">
+                            <div id="twofish-wizard-content"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" id="twofish-btn-cancel"
+                        data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>Batal
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="twofish-btn-back">
+                        <i class="bi bi-arrow-left me-1"></i>Kembali
+                    </button>
+                    <button type="button" class="btn btn-primary" id="twofish-btn-next">
+                        Lanjut<i class="bi bi-arrow-right ms-1"></i>
+                    </button>
+                    <button type="button" class="btn btn-success d-none" id="twofish-btn-finish"
+                        data-bs-dismiss="modal">
+                        <i class="bi bi-check-circle me-1"></i>Selesai
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let dataDokumen = { filename: "", encrypted_filename: "", hash: "" };
 
@@ -229,6 +325,282 @@
             logBox.innerHTML += `> ${message}<br>`;
             logBox.scrollTop = logBox.scrollHeight;
         }
+
+        let twofishTrace = null;
+        let twofishWizardStep = 0;
+        const twofishSteps = [
+            { title: "Key Schedule", icon: "bi-key-fill" },
+            { title: "Input Whitening", icon: "bi-shield-lock-fill" },
+            { title: "Feistel Network", icon: "bi-diagram-3-fill" },
+            { title: "Output Whitening", icon: "bi-box-arrow-right" }
+        ];
+
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        function codeValue(value) {
+            return `<code class="trace-code">${escapeHtml(value ?? "-")}</code>`;
+        }
+
+        function valueList(values) {
+            if (!values || values.length === 0) {
+                return codeValue("-");
+            }
+            return values.map(value => `<span class="badge text-bg-light border me-1 mb-1 trace-code">${escapeHtml(value)}</span>`).join("");
+        }
+
+        function infoRow(label, value) {
+            return `<div class="d-flex gap-2 mb-2">
+                <div class="text-muted" style="min-width: 150px;">${escapeHtml(label)}</div>
+                <div class="fw-semibold">${value}</div>
+            </div>`;
+        }
+
+        function renderTwofishStepList() {
+            const stepList = document.getElementById("twofish-step-list");
+            stepList.innerHTML = twofishSteps.map((step, index) => {
+                const stateClass = index === twofishWizardStep ? "active" : (index < twofishWizardStep ? "done" : "");
+                const icon = index < twofishWizardStep ? "bi-check-circle-fill" : step.icon;
+                return `<div class="trace-step ${stateClass}">
+                    <i class="bi ${icon} me-2"></i>${index + 1}. ${step.title}
+                </div>`;
+            }).join("");
+
+            const progress = ((twofishWizardStep + 1) / twofishSteps.length) * 100;
+            document.getElementById("twofish-wizard-progress").style.width = `${progress}%`;
+        }
+
+        function renderSubkeyTable(subkeys) {
+            if (!subkeys || subkeys.length === 0) {
+                return `<div class="text-muted">Subkey tidak tersedia pada trace.</div>`;
+            }
+            return `<div class="table-responsive trace-scroll">
+                <table class="table table-sm table-striped align-middle mb-0">
+                    <thead class="table-light"><tr><th>Index</th><th>Nama</th><th>Nilai</th></tr></thead>
+                    <tbody>
+                        ${subkeys.map(item => `<tr>
+                            <td>${item.index}</td>
+                            <td>${escapeHtml(item.name)}</td>
+                            <td>${codeValue(item.value)}</td>
+                        </tr>`).join("")}
+                    </tbody>
+                </table>
+            </div>`;
+        }
+
+        function renderRoundKeyTable(roundKeys) {
+            if (!roundKeys || roundKeys.length === 0) {
+                return `<div class="text-muted">Round key tidak tersedia pada trace.</div>`;
+            }
+            return `<div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle mb-0">
+                    <thead class="table-light"><tr><th>Round</th><th>K0</th><th>K1</th></tr></thead>
+                    <tbody>
+                        ${roundKeys.map(item => `<tr>
+                            <td>${item.round}</td>
+                            <td>K${item.k0_index} = ${codeValue(item.k0)}</td>
+                            <td>K${item.k1_index} = ${codeValue(item.k1)}</td>
+                        </tr>`).join("")}
+                    </tbody>
+                </table>
+            </div>`;
+        }
+
+        function renderOperationTable(operations, headers) {
+            if (!operations || operations.length === 0) {
+                return `<div class="text-muted">Operasi tidak tersedia pada trace.</div>`;
+            }
+            return `<div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>${headers.map(header => `<th>${escapeHtml(header.label)}</th>`).join("")}</tr>
+                    </thead>
+                    <tbody>
+                        ${operations.map(operation => `<tr>
+                            ${headers.map(header => `<td>${header.code ? codeValue(operation[header.key]) : escapeHtml(operation[header.key] ?? "-")}</td>`).join("")}
+                        </tr>`).join("")}
+                    </tbody>
+                </table>
+            </div>`;
+        }
+
+        function renderKeyScheduleStep() {
+            const ks = twofishTrace?.key_schedule || {};
+            return `<div class="trace-scroll">
+                <h4 class="fw-bold mb-2">Key Schedule</h4>
+                <p class="text-muted">
+                    Key Schedule mengubah key asli menjadi material kunci yang dipakai Twofish:
+                    subkey whitening, round key untuk 16 ronde, dan S-box key-dependent.
+                </p>
+                <div class="trace-data-box mb-3">
+                    ${infoRow("Key asli", codeValue(ks.original_key_hex))}
+                    ${infoRow("Panjang key", `${escapeHtml(ks.key_length_bits ?? "-")} bit`)}
+                    ${infoRow("Key words", valueList(ks.key_words))}
+                    ${infoRow("Me", valueList(ks.even_words_me))}
+                    ${infoRow("Mo", valueList(ks.odd_words_mo))}
+                    ${infoRow("S-box key", valueList(ks.sbox_keys))}
+                </div>
+                <h6 class="fw-bold">Seluruh Subkey</h6>
+                ${renderSubkeyTable(ks.subkeys)}
+                <h6 class="fw-bold mt-3">Round Key</h6>
+                ${renderRoundKeyTable(ks.round_keys)}
+            </div>`;
+        }
+
+        function renderInputWhiteningStep() {
+            const iw = twofishTrace?.input_whitening || {};
+            return `<div class="trace-scroll">
+                <h4 class="fw-bold mb-2">Input Whitening</h4>
+                <p class="text-muted">
+                    Input Whitening melakukan XOR antara plaintext block dan subkey K0 sampai K3 sebelum masuk
+                    ke jaringan Feistel. Tahap ini menyamarkan input awal dengan material kunci.
+                </p>
+                <div class="trace-data-box mb-3">
+                    ${infoRow("Plaintext block", codeValue(twofishTrace?.block_plaintext_hex))}
+                    ${infoRow("Plaintext words", valueList(iw.plaintext_words))}
+                    ${infoRow("Whitening key", valueList(iw.whitening_keys))}
+                    ${infoRow("Hasil XOR", valueList(iw.result_words))}
+                </div>
+                <h6 class="fw-bold">Rumus XOR</h6>
+                ${renderOperationTable(iw.operations, [
+                    { label: "Word", key: "word" },
+                    { label: "Plaintext", key: "plaintext_word", code: true },
+                    { label: "Key", key: "key" },
+                    { label: "Nilai Key", key: "key_value", code: true },
+                    { label: "Hasil", key: "result", code: true },
+                    { label: "Rumus", key: "formula", code: true }
+                ])}
+            </div>`;
+        }
+
+        function renderFeistelRound(round) {
+            return `<div class="trace-round mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold mb-0">Round ${round.round}</h6>
+                    <span class="badge ${round.swap?.applied ? "text-bg-primary" : "text-bg-success"}">
+                        ${round.swap?.applied ? "Swap" : "Final round"}
+                    </span>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="trace-data-box h-100">
+                            ${infoRow("Input Left", valueList(round.input_left))}
+                            ${infoRow("Input Right", valueList(round.input_right))}
+                            ${infoRow("g input", `${codeValue(round.g_function?.g0_input)} ${codeValue(round.g_function?.g1_input)}`)}
+                            ${infoRow("g output", `t0=${codeValue(round.g_function?.g0_output_t0)} t1=${codeValue(round.g_function?.g1_output_t1)}`)}
+                            ${infoRow("PHT", `pht0=${codeValue(round.pht?.pht0)} pht1=${codeValue(round.pht?.pht1)}`)}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="trace-data-box h-100">
+                            ${infoRow("Round key", `${escapeHtml(round.round_keys?.k0)}=${codeValue(round.round_keys?.k0_value)} ${escapeHtml(round.round_keys?.k1)}=${codeValue(round.round_keys?.k1_value)}`)}
+                            ${infoRow("F0", codeValue(round.f_values?.F0))}
+                            ${infoRow("F1", codeValue(round.f_values?.F1))}
+                            ${infoRow("XOR 1", codeValue(round.xor?.right0_formula))}
+                            ${infoRow("XOR 2", codeValue(round.xor?.right1_formula))}
+                        </div>
+                    </div>
+                </div>
+                <div class="trace-data-box mt-3">
+                    ${infoRow("Sebelum swap", valueList(round.swap?.before_swap))}
+                    ${infoRow("Sesudah swap", valueList(round.swap?.after_swap))}
+                    ${infoRow("Output round", valueList(round.output_round))}
+                </div>
+            </div>`;
+        }
+
+        function renderFeistelStep() {
+            const rounds = twofishTrace?.feistel_rounds || [];
+            return `<div class="trace-scroll">
+                <h4 class="fw-bold mb-2">Feistel Network</h4>
+                <p class="text-muted">
+                    Twofish memakai 16 ronde Feistel. Pada setiap ronde, dua word kiri diproses dengan g function,
+                    hasilnya digabung dengan PHT dan round key untuk membentuk F0 dan F1, lalu diterapkan ke dua word kanan
+                    memakai XOR dan rotasi. Swap dilakukan sampai round 15.
+                </p>
+                <div class="alert alert-info py-2">
+                    PHT pada source code direkam dari rumus F0 = t0 + t1 + round key dan
+                    F1 = t0 + 2*t1 + round key, tanpa menjalankan proses tambahan.
+                </div>
+                ${rounds.length ? rounds.map(renderFeistelRound).join("") : `<div class="text-muted">Trace ronde Feistel tidak tersedia.</div>`}
+            </div>`;
+        }
+
+        function renderOutputWhiteningStep() {
+            const ow = twofishTrace?.output_whitening || {};
+            return `<div class="trace-scroll">
+                <h4 class="fw-bold mb-2">Output Whitening</h4>
+                <p class="text-muted">
+                    Output Whitening adalah XOR akhir antara state setelah Feistel dan subkey K4 sampai K7.
+                    Hasil tahap ini adalah ciphertext akhir blok Twofish.
+                </p>
+                <div class="trace-data-box mb-3">
+                    ${infoRow("State sebelum whitening", valueList(ow.state_before_output_whitening))}
+                    ${infoRow("Whitening key", valueList(ow.whitening_keys))}
+                    ${infoRow("Hasil whitening", valueList(ow.result_words))}
+                    ${infoRow("Ciphertext akhir", codeValue(twofishTrace?.ciphertext_hex))}
+                </div>
+                <h6 class="fw-bold">Operasi XOR Output Whitening</h6>
+                ${renderOperationTable(ow.operations, [
+                    { label: "Cipher Word", key: "cipher_word" },
+                    { label: "State", key: "state_value", code: true },
+                    { label: "Key", key: "key" },
+                    { label: "Nilai Key", key: "key_value", code: true },
+                    { label: "Hasil", key: "result", code: true },
+                    { label: "Rumus", key: "formula", code: true }
+                ])}
+            </div>`;
+        }
+
+        function renderTwofishWizard() {
+            renderTwofishStepList();
+            const content = document.getElementById("twofish-wizard-content");
+            const renderers = [
+                renderKeyScheduleStep,
+                renderInputWhiteningStep,
+                renderFeistelStep,
+                renderOutputWhiteningStep
+            ];
+            content.innerHTML = renderers[twofishWizardStep]();
+
+            document.getElementById("twofish-btn-back").disabled = twofishWizardStep === 0;
+            document.getElementById("twofish-btn-next").classList.toggle("d-none", twofishWizardStep === twofishSteps.length - 1);
+            document.getElementById("twofish-btn-finish").classList.toggle("d-none", twofishWizardStep !== twofishSteps.length - 1);
+        }
+
+        function openTwofishWizard(trace) {
+            twofishTrace = trace;
+            twofishWizardStep = 0;
+            renderTwofishWizard();
+            const modal = new bootstrap.Modal(document.getElementById("modalTwofishWizard"));
+            modal.show();
+        }
+
+        document.getElementById("twofish-btn-next").addEventListener("click", function () {
+            if (twofishWizardStep < twofishSteps.length - 1) {
+                twofishWizardStep += 1;
+                renderTwofishWizard();
+            }
+        });
+
+        document.getElementById("twofish-btn-back").addEventListener("click", function () {
+            if (twofishWizardStep > 0) {
+                twofishWizardStep -= 1;
+                renderTwofishWizard();
+            }
+        });
+
+        document.getElementById("btn-lihat-trace").addEventListener("click", function () {
+            if (dataDokumen.twofish_trace) {
+                openTwofishWizard(dataDokumen.twofish_trace);
+            }
+        });
 
         // Fungsi Mengatur Progress Bar Enkripsi
         function setProgressEnkripsi(percent, text, colorClass) {
@@ -311,12 +683,18 @@
                     dataDokumen.ava_key = result.ava_key;
                     dataDokumen.ukuran_kb = result.ukuran_kb;
                     dataDokumen.waktu_enkripsi = result.waktu;
+                    dataDokumen.twofish_trace = result.twofish_trace;
 
                     document.getElementById('alert-blockchain').classList.add('d-none');
                     document.getElementById('btn-blockchain').disabled = false;
                     document.getElementById('log-blockchain').innerHTML = "";
                     addLog("log-blockchain", `Menerima Hash: ${result.hash.substring(0, 70)}`);
                     addLog("log-blockchain", "Siap dikirim ke jaringan Blockchain.");
+                    if (result.twofish_trace) {
+                        addLog("log-enkripsi", "Execution Trace Twofish berhasil direkam dari proses enkripsi.");
+                        document.getElementById('btn-lihat-trace').classList.remove('d-none');
+                        openTwofishWizard(result.twofish_trace);
+                    }
                 } else {
                     setProgressEnkripsi(100, "Gagal Enkripsi!", "bg-danger");
                     addLog("log-enkripsi", `ERROR: ${result.error}`);
@@ -378,6 +756,9 @@
             document.getElementById('progress-container-enkripsi').classList.add('d-none');
             document.getElementById('progress-container-blockchain').classList.add('d-none');
             document.getElementById('btn-reset').classList.add('d-none');
+            document.getElementById('btn-lihat-trace').classList.add('d-none');
+            dataDokumen.twofish_trace = null;
+            twofishTrace = null;
 
             document.getElementById('log-enkripsi').innerHTML = "Sistem siap, log dibersihkan...<br>";
             document.getElementById('log-blockchain').innerHTML = "Menunggu data hash...<br>";

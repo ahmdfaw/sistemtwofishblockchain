@@ -106,17 +106,28 @@ def api_enkripsi():
         # Proses Enkripsi Twofish
         start_time = time.time()
         key_bytes = prepare_key(password)
-        K, S = kriptografi.generate_subkeys(key_bytes)
+        twofish_trace = {}
+        K, S = kriptografi.generate_subkeys(key_bytes, trace=twofish_trace)
 
         with open(filepath, 'rb') as f:
             pdf_data = f.read()
             padded_data = pad_data(pdf_data)
 
+        encrypted_data = bytearray()
+        cipher_asli = None
+        for i in range(0, len(padded_data), 16):
+            block = padded_data[i:i+16]
+            if i == 0:
+                encrypted_block = kriptografi.encrypt_block(list(block), K, S, trace=twofish_trace)
+                cipher_asli = encrypted_block
+            else:
+                encrypted_block = kriptografi.encrypt_block(list(block), K, S)
+            encrypted_data.extend(encrypted_block)
+
         # ========================================================
         # 🧪 UJI AVALANCHE EFFECT (SAMPEL 1 BLOK PERTAMA DARI PDF)
         # ========================================================
         block_sampel = bytearray(padded_data[:16])
-        cipher_asli = kriptografi.encrypt_block(list(block_sampel), K, S)
 
         # Skenario A: Ubah 1 bit pada File/Pesan
         block_ubah = bytearray(block_sampel)
@@ -133,12 +144,6 @@ def api_enkripsi():
         beda_key = hitung_perbedaan_bit(cipher_asli, cipher_ubah_key)
         ava_key = round((beda_key / 128) * 100, 2)
         # ========================================================
-
-        encrypted_data = bytearray()
-        for i in range(0, len(padded_data), 16):
-            block = padded_data[i:i+16]
-            encrypted_block = kriptografi.encrypt_block(list(block), K, S)
-            encrypted_data.extend(encrypted_block)
 
         encrypted_filename = "ENCRYPTED_" + filename
         encrypted_filepath = os.path.join(app.config['UPLOAD_FOLDER'], encrypted_filename)
@@ -159,7 +164,8 @@ def api_enkripsi():
             "waktu": waktu_proses,
             "ava_pesan": ava_pesan, 
             "ava_key": ava_key,
-            "ukuran_kb": ukuran_kb  
+            "ukuran_kb": ukuran_kb,
+            "twofish_trace": twofish_trace
         })
     else:
         return jsonify({"error": "Hanya file PDF yang diizinkan!"}), 400
