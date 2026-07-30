@@ -261,12 +261,16 @@ def api_dekripsi():
             return jsonify({'error': 'File terenkripsi kosong!'}), 400
 
         key_bytes = prepare_key(password)
-        K, S = kriptografi.generate_subkeys(key_bytes)
+        twofish_trace = {}
+        K, S = kriptografi.generate_subkeys(key_bytes, trace=twofish_trace)
 
         decrypted_data = bytearray()
         for i in range(0, len(encrypted_data), 16):
             block = encrypted_data[i:i + 16]
-            decrypted_block = kriptografi.decrypt_block(list(block), K, S)
+            if i == 0:
+                decrypted_block = kriptografi.decrypt_block(list(block), K, S, trace=twofish_trace)
+            else:
+                decrypted_block = kriptografi.decrypt_block(list(block), K, S)
             decrypted_data.extend(decrypted_block)
 
         if len(decrypted_data) == 0:
@@ -294,7 +298,8 @@ def api_dekripsi():
             'status': 'success',
             'pesan': 'Dekripsi PDF Berhasil!',
             'decrypted_filename': decrypted_filename,
-            'waktu': waktu_proses
+            'waktu': waktu_proses,
+            'twofish_trace': twofish_trace
         })
 
     except Exception as e:

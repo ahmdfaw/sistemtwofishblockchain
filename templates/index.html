@@ -244,6 +244,10 @@
 
                         <label class="form-label fw-bold small mb-1">Log Proses Dekripsi:</label>
                         <div id="log-dekripsi" class="log-box">Sistem siap...<br></div>
+                        <button type="button" class="btn btn-outline-primary w-100 mt-3 d-none"
+                            id="btn-lihat-trace-dekripsi">
+                            <i class="bi bi-diagram-3 me-1"></i>Lihat Visualisasi Dekripsi Twofish
+                        </button>
                     </div>
                 </div>
             </div>
@@ -401,6 +405,9 @@
 
         let twofishTrace = null;
         let twofishWizardStep = 0;
+        let twofishWizardMode = "encrypt";
+        let dataDokumenDekripsi = { twofish_trace: null };
+
         const twofishSteps = [
             { title: "Key Schedule", icon: "bi-key-fill" },
             { title: "Input Whitening", icon: "bi-shield-lock-fill" },
@@ -528,22 +535,26 @@
 
         function renderInputWhiteningStep() {
             const iw = twofishTrace?.input_whitening || {};
+            const isDecrypt = twofishWizardMode === "decrypt";
+            const blockHex = isDecrypt ? (twofishTrace?.block_ciphertext_hex || twofishTrace?.block_plaintext_hex) : twofishTrace?.block_plaintext_hex;
+            const wordsList = isDecrypt ? (iw.ciphertext_words || iw.plaintext_words) : iw.plaintext_words;
+            const desc = isDecrypt
+                ? "Input Pre-whitening dekripsi melakukan XOR antara ciphertext block dan subkey K4 sampai K7 sebelum masuk ke jaringan Feistel."
+                : "Input Whitening melakukan XOR antara plaintext block dan subkey K0 sampai K3 sebelum masuk ke jaringan Feistel. Tahap ini menyamarkan input awal dengan material kunci.";
+
             return `<div class="trace-scroll">
-                <h4 class="fw-bold mb-2">Input Whitening</h4>
-                <p class="text-muted">
-                    Input Whitening melakukan XOR antara plaintext block dan subkey K0 sampai K3 sebelum masuk
-                    ke jaringan Feistel. Tahap ini menyamarkan input awal dengan material kunci.
-                </p>
+                <h4 class="fw-bold mb-2">${isDecrypt ? "Input Pre-whitening (Dekripsi)" : "Input Whitening"}</h4>
+                <p class="text-muted">${desc}</p>
                 <div class="trace-data-box mb-3">
-                    ${infoRow("Plaintext block", codeValue(twofishTrace?.block_plaintext_hex))}
-                    ${infoRow("Plaintext words", valueList(iw.plaintext_words))}
+                    ${infoRow(isDecrypt ? "Ciphertext block" : "Plaintext block", codeValue(blockHex))}
+                    ${infoRow(isDecrypt ? "Ciphertext words" : "Plaintext words", valueList(wordsList))}
                     ${infoRow("Whitening key", valueList(iw.whitening_keys))}
                     ${infoRow("Hasil XOR", valueList(iw.result_words))}
                 </div>
                 <h6 class="fw-bold">Rumus XOR</h6>
                 ${renderOperationTable(iw.operations, [
                     { label: "Word", key: "word" },
-                    { label: "Plaintext", key: "plaintext_word", code: true },
+                    { label: isDecrypt ? "Ciphertext" : "Plaintext", key: isDecrypt ? "ciphertext_word" : "plaintext_word", code: true },
                     { label: "Key", key: "key" },
                     { label: "Nilai Key", key: "key_value", code: true },
                     { label: "Hasil", key: "result", code: true },
@@ -553,11 +564,19 @@
         }
 
         function renderFeistelRound(round) {
+            const isDecrypt = twofishWizardMode === "decrypt";
+            const roundBadgeText = round.swap?.applied 
+                ? "Swap" 
+                : (isDecrypt ? "Ronde Terakhir" : "Final round");
+            const roundTitle = isDecrypt 
+                ? `Round ${round.round} (Feistel Ronde ${round.encryption_round || (17 - round.round)})`
+                : `Round ${round.round}`;
+
             return `<div class="trace-round mb-3">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="fw-bold mb-0">Round ${round.round}</h6>
+                    <h6 class="fw-bold mb-0">${roundTitle}</h6>
                     <span class="badge ${round.swap?.applied ? "text-bg-primary" : "text-bg-success"}">
-                        ${round.swap?.applied ? "Swap" : "Final round"}
+                        ${roundBadgeText}
                     </span>
                 </div>
                 <div class="row g-3">
@@ -590,13 +609,14 @@
 
         function renderFeistelStep() {
             const rounds = twofishTrace?.feistel_rounds || [];
+            const isDecrypt = twofishWizardMode === "decrypt";
+            const desc = isDecrypt
+                ? "Twofish memakai 16 ronde Feistel (berjalan mundur dari ronde 16 ke ronde 1 pada proses dekripsi). Pada setiap ronde, dua word kiri diproses dengan g function, hasilnya digabung dengan PHT dan round key untuk membentuk F0 dan F1, lalu diterapkan ke dua word kanan memakai pergeseran bit ROL, ROR, dan XOR."
+                : "Twofish memakai 16 ronde Feistel. Pada setiap ronde, dua word kiri diproses dengan g function, hasilnya digabung dengan PHT dan round key untuk membentuk F0 dan F1, lalu diterapkan ke dua word kanan memakai XOR dan rotasi. Swap dilakukan sampai round 15.";
+
             return `<div class="trace-scroll">
-                <h4 class="fw-bold mb-2">Feistel Network</h4>
-                <p class="text-muted">
-                    Twofish memakai 16 ronde Feistel. Pada setiap ronde, dua word kiri diproses dengan g function,
-                    hasilnya digabung dengan PHT dan round key untuk membentuk F0 dan F1, lalu diterapkan ke dua word kanan
-                    memakai XOR dan rotasi. Swap dilakukan sampai round 15.
-                </p>
+                <h4 class="fw-bold mb-2">${isDecrypt ? "Feistel Network (Dekripsi Mundur)" : "Feistel Network"}</h4>
+                <p class="text-muted">${desc}</p>
                 <div class="alert alert-info py-2">
                     PHT pada source code direkam dari rumus F0 = t0 + t1 + round key dan
                     F1 = t0 + 2*t1 + round key, tanpa menjalankan proses tambahan.
@@ -607,21 +627,24 @@
 
         function renderOutputWhiteningStep() {
             const ow = twofishTrace?.output_whitening || {};
+            const isDecrypt = twofishWizardMode === "decrypt";
+            const resultHex = isDecrypt ? (twofishTrace?.plaintext_hex || twofishTrace?.ciphertext_hex) : twofishTrace?.ciphertext_hex;
+            const desc = isDecrypt
+                ? "Output Post-whitening adalah XOR akhir antara state setelah 16 ronde Feistel dan subkey K0 sampai K3. Hasil tahap ini adalah plaintext akhir blok Twofish."
+                : "Output Whitening adalah XOR akhir antara state setelah Feistel dan subkey K4 sampai K7. Hasil tahap ini adalah ciphertext akhir blok Twofish.";
+
             return `<div class="trace-scroll">
-                <h4 class="fw-bold mb-2">Output Whitening</h4>
-                <p class="text-muted">
-                    Output Whitening adalah XOR akhir antara state setelah Feistel dan subkey K4 sampai K7.
-                    Hasil tahap ini adalah ciphertext akhir blok Twofish.
-                </p>
+                <h4 class="fw-bold mb-2">${isDecrypt ? "Output Post-whitening (Dekripsi)" : "Output Whitening"}</h4>
+                <p class="text-muted">${desc}</p>
                 <div class="trace-data-box mb-3">
                     ${infoRow("State sebelum whitening", valueList(ow.state_before_output_whitening))}
                     ${infoRow("Whitening key", valueList(ow.whitening_keys))}
                     ${infoRow("Hasil whitening", valueList(ow.result_words))}
-                    ${infoRow("Ciphertext akhir", codeValue(twofishTrace?.ciphertext_hex))}
+                    ${infoRow(isDecrypt ? "Plaintext akhir" : "Ciphertext akhir", codeValue(resultHex))}
                 </div>
                 <h6 class="fw-bold">Operasi XOR Output Whitening</h6>
                 ${renderOperationTable(ow.operations, [
-                    { label: "Cipher Word", key: "cipher_word" },
+                    { label: isDecrypt ? "Plain Word" : "Cipher Word", key: "cipher_word" },
                     { label: "State", key: "state_value", code: true },
                     { label: "Key", key: "key" },
                     { label: "Nilai Key", key: "key_value", code: true },
@@ -647,9 +670,22 @@
             document.getElementById("twofish-btn-finish").classList.toggle("d-none", twofishWizardStep !== twofishSteps.length - 1);
         }
 
-        function openTwofishWizard(trace) {
+        function openTwofishWizard(trace, mode = "encrypt") {
             twofishTrace = trace;
+            twofishWizardMode = mode;
             twofishWizardStep = 0;
+
+            const modalTitleEl = document.getElementById("modalTwofishWizardLabel");
+            const modalHeaderSubEl = document.querySelector("#modalTwofishWizard .modal-header .small");
+
+            if (mode === "decrypt") {
+                modalTitleEl.innerHTML = '<i class="bi bi-diagram-3-fill me-2"></i>Visualisasi Proses Dekripsi Twofish';
+                if (modalHeaderSubEl) modalHeaderSubEl.textContent = 'Trace diambil dari blok pertama pada proses dekripsi yang berjalan.';
+            } else {
+                modalTitleEl.innerHTML = '<i class="bi bi-diagram-3-fill me-2"></i>Visualisasi Proses Enkripsi Twofish';
+                if (modalHeaderSubEl) modalHeaderSubEl.textContent = 'Trace diambil dari blok pertama pada proses enkripsi yang berjalan.';
+            }
+
             renderTwofishWizard();
             const modal = new bootstrap.Modal(document.getElementById("modalTwofishWizard"));
             modal.show();
@@ -671,7 +707,13 @@
 
         document.getElementById("btn-lihat-trace").addEventListener("click", function () {
             if (dataDokumen.twofish_trace) {
-                openTwofishWizard(dataDokumen.twofish_trace);
+                openTwofishWizard(dataDokumen.twofish_trace, "encrypt");
+            }
+        });
+
+        document.getElementById("btn-lihat-trace-dekripsi").addEventListener("click", function () {
+            if (dataDokumenDekripsi.twofish_trace) {
+                openTwofishWizard(dataDokumenDekripsi.twofish_trace, "decrypt");
             }
         });
 
@@ -830,7 +872,9 @@
             document.getElementById('progress-container-blockchain').classList.add('d-none');
             document.getElementById('btn-reset').classList.add('d-none');
             document.getElementById('btn-lihat-trace').classList.add('d-none');
+            document.getElementById('btn-lihat-trace-dekripsi').classList.add('d-none');
             dataDokumen.twofish_trace = null;
+            dataDokumenDekripsi.twofish_trace = null;
             twofishTrace = null;
 
             document.getElementById('log-enkripsi').innerHTML = "Sistem siap, log dibersihkan...<br>";
@@ -919,6 +963,13 @@
                     addLog("log-dekripsi", "✅ " + result.pesan);
                     addLog("log-dekripsi", "🔓 File Output Dekripsi: " + result.decrypted_filename);
                     addLog("log-dekripsi", `Waktu Proses: ${result.waktu} detik`);
+
+                    if (result.twofish_trace) {
+                        dataDokumenDekripsi.twofish_trace = result.twofish_trace;
+                        addLog("log-dekripsi", "Execution Trace Twofish berhasil direkam dari proses dekripsi.");
+                        document.getElementById('btn-lihat-trace-dekripsi').classList.remove('d-none');
+                        openTwofishWizard(result.twofish_trace, "decrypt");
+                    }
                 } else {
                     setProgressDekripsi(100, "Dekripsi Gagal!", "bg-danger");
                     addLog("log-dekripsi", `❌ ERROR: ${result.error}`);
