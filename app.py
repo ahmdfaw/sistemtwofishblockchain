@@ -84,6 +84,8 @@ def simpan_ke_riwayat(data):
         json.dump(riwayat, f, indent=4)
 
 @app.route('/', methods=['GET'])
+@app.route('/dekripsi', methods=['GET'])
+@app.route('/verifikasi', methods=['GET'])
 def beranda():
     return render_template('index.html')
 
@@ -226,8 +228,8 @@ def api_riwayat():
                 pass
     return jsonify({"riwayat": []})
 
-@app.route('/api/verifikasi', methods=['POST'])
-def api_verifikasi():
+@app.route('/api/dekripsi', methods=['POST'])
+def api_dekripsi():
     try:
         if 'file_pdf' not in request.files:
             return jsonify({'error': 'Tidak ada file yang diunggah!'}), 400
@@ -238,9 +240,11 @@ def api_verifikasi():
         if not file or file.filename == '':
             return jsonify({'error': 'File belum dipilih!'}), 400
 
+        if not password:
+            return jsonify({'error': 'Kata sandi tidak boleh kosong!'}), 400
+
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        
         file.save(filepath)
 
         if filename.startswith('ENCRYPTED_'):
@@ -255,23 +259,6 @@ def api_verifikasi():
 
         if len(encrypted_data) == 0:
             return jsonify({'error': 'File terenkripsi kosong!'}), 400
-
-        sha256_hash = hashlib.sha256(encrypted_data).hexdigest()
-
-        if not w3.is_connected():
-            return jsonify({'error': 'Flask tidak terhubung ke Ganache!'}), 500
-
-        hash_di_blockchain = contract.functions.ambilHashDokumen(id_dokumen).call()
-
-        if not hash_di_blockchain:
-            return jsonify({
-                'error': f"Dokumen '{id_dokumen}' tidak ditemukan dalam catatan Blockchain!"
-            }), 404
-
-        if sha256_hash != hash_di_blockchain:
-            return jsonify({
-                'error': 'INTEGRITAS GAGAL! Hash file tidak cocok dengan catatan Blockchain. File telah dimanipulasi/palsu!'
-            }), 400
 
         key_bytes = prepare_key(password)
         K, S = kriptografi.generate_subkeys(key_bytes)
@@ -305,15 +292,81 @@ def api_verifikasi():
 
         return jsonify({
             'status': 'success',
-            'pesan': 'Verifikasi Valid & Dekripsi Berhasil!',
-            'hash': sha256_hash,
+            'pesan': 'Dekripsi PDF Berhasil!',
             'decrypted_filename': decrypted_filename,
-            'waktu': waktu_proses,
+            'waktu': waktu_proses
         })
 
     except Exception as e:
         return jsonify({
-            'error': f'Gagal melakukan proses verifikasi/dekripsi: {str(e)}'
+            'error': f'Gagal melakukan proses dekripsi: {str(e)}'
+        }), 500
+
+
+@app.route('/api/verifikasi', methods=['POST'])
+def api_verifikasi():
+    try:
+        if 'file_pdf' not in request.files:
+            return jsonify({'error': 'Tidak ada file yang diunggah!'}), 400
+
+        file = request.files['file_pdf']
+
+        if not file or file.filename == '':
+            return jsonify({'error': 'File belum dipilih!'}), 400
+
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        if filename.startswith('ENCRYPTED_'):
+            id_dokumen = filename.replace('ENCRYPTED_', '', 1)
+        else:
+            id_dokumen = filename
+
+        start_time = time.time()
+
+        with open(filepath, 'rb') as f:
+            file_data = f.read()
+
+        if len(file_data) == 0:
+            return jsonify({'error': 'File kosong!'}), 400
+
+        sha256_hash = hashlib.sha256(file_data).hexdigest()
+
+        if not w3.is_connected():
+            return jsonify({'error': 'Flask tidak terhubung ke Ganache!'}), 500
+
+        hash_di_blockchain = contract.functions.ambilHashDokumen(id_dokumen).call()
+
+        if not hash_di_blockchain:
+            return jsonify({
+                'error': f"Dokumen '{id_dokumen}' tidak ditemukan dalam catatan Blockchain!",
+                'hash_file': sha256_hash,
+                'hash_blockchain': None
+            }), 404
+
+        waktu_proses = round(time.time() - start_time, 4)
+
+        if sha256_hash != hash_di_blockchain:
+            return jsonify({
+                'status': 'mismatch',
+                'error': 'INTEGRITAS GAGAL! Hash file tidak cocok dengan catatan Blockchain. File telah dimanipulasi/palsu!',
+                'hash_file': sha256_hash,
+                'hash_blockchain': hash_di_blockchain,
+                'waktu': waktu_proses
+            }), 400
+
+        return jsonify({
+            'status': 'success',
+            'pesan': 'INTEGRITAS VALID! Hash dokumen cocok dengan catatan Blockchain. Dokumen asli dan belum dimanipulasi.',
+            'hash_file': sha256_hash,
+            'hash_blockchain': hash_di_blockchain,
+            'waktu': waktu_proses
+        })
+
+    except Exception as e:
+        return jsonify({
+            'error': f'Gagal melakukan proses verifikasi blockchain: {str(e)}'
         }), 500
     
 if __name__ == '__main__':
