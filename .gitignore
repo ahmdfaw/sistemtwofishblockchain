@@ -7,6 +7,7 @@ __pycache__/
 uploads/
 
 # Mengabaikan folder virtual environment (jika suatu saat kamu menggunakannya)
+.venv/
 venv/
 env/
 
@@ -15,3 +16,14 @@ database_riwayat.json
 
 # Environments
 .env
+
+# Cache, build, dan file sementara Python
+*.pyd
+.Python
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.log
