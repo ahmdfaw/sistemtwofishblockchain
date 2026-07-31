@@ -157,12 +157,53 @@
                                     </div>
                                 </div>
 
-                                <label class="form-label fw-bold small mb-1">Log Proses Enkripsi:</label>
-                                <div id="log-enkripsi" class="log-box">Sistem siap...<br></div>
-                                <button type="button" class="btn btn-outline-primary w-100 mt-3 d-none"
-                                    id="btn-lihat-trace">
-                                    <i class="bi bi-diagram-3 me-1"></i>Lihat Visualisasi Twofish
-                                </button>
+                                <!-- Card Ringkasan Hasil Enkripsi -->
+                                <div id="card-hasil-enkripsi" class="card border-0 bg-light shadow-sm mt-3 d-none">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                            <span class="fw-bold text-dark"><i class="bi bi-file-earmark-check-fill text-success me-2"></i>Ringkasan Hasil Enkripsi</span>
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Enkripsi Berhasil</span>
+                                        </div>
+
+                                        <div class="row g-2 mb-3 small">
+                                            <div class="col-12 col-md-5">
+                                                <div class="text-muted">Nama File Output:</div>
+                                                <div class="fw-semibold text-break text-primary" id="res-filename"><i class="bi bi-file-earmark-pdf me-1"></i>-</div>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <div class="text-muted">Waktu Enkripsi:</div>
+                                                <div class="fw-semibold" id="res-waktu">0.00s</div>
+                                            </div>
+                                            <div class="col-6 col-md-4">
+                                                <div class="text-muted">Ukuran File Output:</div>
+                                                <div class="fw-semibold" id="res-ukuran">0 KB (0 MB)</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <label class="form-label fw-bold small mb-0"><i class="bi bi-key me-1"></i>Ciphertext (Preview):</label>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 text-nowrap" id="btn-copy-ciphertext" title="Salin Ciphertext"><i class="bi bi-copy me-1"></i>Salin</button>
+                                            </div>
+                                            <div class="p-2 bg-white border rounded font-monospace small text-break" id="res-ciphertext" style="max-height: 80px; overflow-y: auto;">-</div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <label class="form-label fw-bold small mb-0"><i class="bi bi-shield-check me-1"></i>Hash SHA-256:</label>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 text-nowrap" id="btn-copy-hash" title="Salin Hash SHA-256"><i class="bi bi-copy me-1"></i>Salin</button>
+                                            </div>
+                                            <div class="p-2 bg-white border rounded font-monospace small text-break text-danger" id="res-hash">-</div>
+                                        </div>
+
+                                        <div class="d-grid gap-2">
+                                            <a id="btn-download-file" href="#" download class="btn btn-outline-primary fw-bold py-2"><i class="bi bi-download me-2"></i>Download File PDF Terenkripsi</a>
+                                            <button type="button" class="btn btn-outline-primary fw-bold py-2" id="btn-lihat-trace">
+                                                <i class="bi bi-diagram-3 me-2"></i>Lihat Visualisasi Twofish
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -399,8 +440,10 @@
 
         function addLog(elementId, message) {
             const logBox = document.getElementById(elementId);
-            logBox.innerHTML += `> ${message}<br>`;
-            logBox.scrollTop = logBox.scrollHeight;
+            if (logBox) {
+                logBox.innerHTML += `> ${message}<br>`;
+                logBox.scrollTop = logBox.scrollHeight;
+            }
         }
 
         let twofishTrace = null;
@@ -771,9 +814,8 @@
             const btn = document.getElementById('btn-enkripsi');
 
             btn.disabled = true;
-            document.getElementById('log-enkripsi').innerHTML = "";
+            document.getElementById('card-hasil-enkripsi').classList.add('d-none');
             setProgressEnkripsi(40, "Mengenkripsi Data...", "bg-primary");
-            addLog("log-enkripsi", "Memulai inisialisasi Jaringan Feistel Twofish...");
 
             const formData = new FormData();
             formData.append("file_pdf", document.getElementById('file_pdf').files[0]);
@@ -786,11 +828,6 @@
                 if (result.status === "success") {
                     setProgressEnkripsi(100, "Enkripsi Selesai!", "bg-success");
 
-                    // Menambahkan Waktu Proses kembali ke log
-                    addLog("log-enkripsi", `ENKRIPSI SUKSES! Waktu Proses: ${result.waktu} detik`);
-                    addLog("log-enkripsi", `File Output: ${result.encrypted_filename}`);
-                    addLog("log-enkripsi", `Mengekstrak Hash SHA-256: ${result.hash.substring(0, 70)}`);
-
                     dataDokumen.filename = result.filename;
                     dataDokumen.encrypted_filename = result.encrypted_filename;
                     dataDokumen.hash = result.hash;
@@ -800,26 +837,80 @@
                     dataDokumen.waktu_enkripsi = result.waktu;
                     dataDokumen.twofish_trace = result.twofish_trace;
 
+                    // Isi data ke Card Ringkasan Hasil Enkripsi
+                    document.getElementById('res-filename').innerHTML = `<i class="bi bi-file-earmark-pdf-fill me-1 text-danger"></i>${escapeHtml(result.encrypted_filename)}`;
+                    document.getElementById('res-waktu').innerText = `${result.waktu} detik`;
+                    
+                    const sizeKB = parseFloat(result.ukuran_kb);
+                    const sizeMB = (sizeKB / 1024).toFixed(2);
+                    document.getElementById('res-ukuran').innerText = `${sizeKB} KB (${sizeMB} MB)`;
+                    
+                    document.getElementById('res-hash').innerText = result.hash;
+
+                    // Ciphertext preview (menggunakan trace jika ada atau fallback)
+                    let cipherPreview = "-";
+                    if (result.twofish_trace && result.twofish_trace.ciphertext_hex) {
+                        cipherPreview = result.twofish_trace.ciphertext_hex;
+                    } else if (result.twofish_trace && result.twofish_trace.block_ciphertext_hex) {
+                        cipherPreview = result.twofish_trace.block_ciphertext_hex;
+                    } else {
+                        cipherPreview = result.hash;
+                    }
+                    document.getElementById('res-ciphertext').innerText = cipherPreview;
+
+                    // Setup link download
+                    const downloadBtn = document.getElementById('btn-download-file');
+                    downloadBtn.href = `/uploads/${encodeURIComponent(result.encrypted_filename)}`;
+                    downloadBtn.setAttribute('download', result.encrypted_filename);
+
+                    // Tampilkan Card Ringkasan Hasil
+                    document.getElementById('card-hasil-enkripsi').classList.remove('d-none');
+
                     document.getElementById('alert-blockchain').classList.add('d-none');
                     document.getElementById('btn-blockchain').disabled = false;
                     document.getElementById('log-blockchain').innerHTML = "";
                     addLog("log-blockchain", `Menerima Hash: ${result.hash.substring(0, 70)}`);
                     addLog("log-blockchain", "Siap dikirim ke jaringan Blockchain.");
                     if (result.twofish_trace) {
-                        addLog("log-enkripsi", "Execution Trace Twofish berhasil direkam dari proses enkripsi.");
-                        document.getElementById('btn-lihat-trace').classList.remove('d-none');
                         openTwofishWizard(result.twofish_trace);
                     }
                 } else {
                     setProgressEnkripsi(100, "Gagal Enkripsi!", "bg-danger");
-                    addLog("log-enkripsi", `ERROR: ${result.error}`);
                     btn.disabled = false;
                 }
             } catch (error) {
                 setProgressEnkripsi(100, "Sistem Error!", "bg-danger");
-                addLog("log-enkripsi", `SYSTEM ERROR: ${error}`);
                 btn.disabled = false;
             }
+        });
+
+        // Copy Helper Event Handlers
+        document.getElementById('btn-copy-ciphertext').addEventListener('click', function () {
+            const text = document.getElementById('res-ciphertext').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('btn-copy-ciphertext');
+                const origHTML = btn.innerHTML;
+                btn.innerHTML = `<i class="bi bi-check me-1"></i>Tersalin!`;
+                btn.className = "btn btn-sm btn-success py-0 px-2 text-nowrap";
+                setTimeout(() => {
+                    btn.innerHTML = origHTML;
+                    btn.className = "btn btn-sm btn-outline-secondary py-0 px-2 text-nowrap";
+                }, 2000);
+            });
+        });
+
+        document.getElementById('btn-copy-hash').addEventListener('click', function () {
+            const text = document.getElementById('res-hash').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('btn-copy-hash');
+                const origHTML = btn.innerHTML;
+                btn.innerHTML = `<i class="bi bi-check me-1"></i>Tersalin!`;
+                btn.className = "btn btn-sm btn-success py-0 px-2 text-nowrap";
+                setTimeout(() => {
+                    btn.innerHTML = origHTML;
+                    btn.className = "btn btn-sm btn-outline-secondary py-0 px-2 text-nowrap";
+                }, 2000);
+            });
         });
 
         // 2. Eksekusi Blockchain
@@ -870,14 +961,13 @@
 
             document.getElementById('progress-container-enkripsi').classList.add('d-none');
             document.getElementById('progress-container-blockchain').classList.add('d-none');
+            document.getElementById('card-hasil-enkripsi').classList.add('d-none');
             document.getElementById('btn-reset').classList.add('d-none');
-            document.getElementById('btn-lihat-trace').classList.add('d-none');
             document.getElementById('btn-lihat-trace-dekripsi').classList.add('d-none');
             dataDokumen.twofish_trace = null;
             dataDokumenDekripsi.twofish_trace = null;
             twofishTrace = null;
 
-            document.getElementById('log-enkripsi').innerHTML = "Sistem siap, log dibersihkan...<br>";
             document.getElementById('log-blockchain').innerHTML = "Menunggu data hash...<br>";
 
             setProgressEnkripsi(0, "0%", "bg-primary");

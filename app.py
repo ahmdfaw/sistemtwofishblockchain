@@ -1,7 +1,6 @@
 import os
 import hashlib
-from flask import Flask, render_template, request
-from flask import jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 from web3 import Web3
 import kriptografi 
@@ -171,6 +170,11 @@ def api_enkripsi():
         })
     else:
         return jsonify({"error": "Hanya file PDF yang diizinkan!"}), 400
+
+
+@app.route('/uploads/<path:filename>', methods=['GET'])
+def download_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
 
 
 @app.route('/api/blockchain', methods=['POST'])
