@@ -212,21 +212,105 @@
                         <div class="card shadow-sm border-0 h-100">
                             <div class="card-header bg-success text-white fw-bold"><i class="bi bi-box-seam-fill me-2"></i>Penyimpanan Blockchain (Ganache)</div>
                             <div class="card-body d-flex flex-column">
-                                <div class="alert alert-warning small" id="alert-blockchain">
-                                    Selesaikan proses enkripsi terlebih dahulu.
-                                </div>
-                                <button class="btn btn-success w-100 mb-3 fw-bold" id="btn-blockchain" disabled>Simpan Hash ke Blockchain</button>
 
-                                <div class="progress mb-2 d-none" id="progress-container-blockchain" style="height: 20px;">
+                                <!-- STATE 1: Belum melakukan Enkripsi -->
+                                <div id="bc-state-waiting" class="text-center py-4 px-3 my-auto">
+                                    <div class="mb-3">
+                                        <i class="bi bi-box-seam text-secondary" style="font-size: 3rem;"></i>
+                                    </div>
+                                    <h6 class="fw-bold text-dark mb-2">Menunggu hasil enkripsi</h6>
+                                    <p class="text-muted small mb-0">
+                                        Silakan lakukan proses enkripsi terlebih dahulu.<br>
+                                        Hash SHA-256 akan dihasilkan setelah proses enkripsi selesai dan dapat disimpan ke Blockchain.
+                                    </p>
+                                </div>
+
+                                <!-- STATE 2: Enkripsi selesai (Siap Disimpan) -->
+                                <div id="bc-state-ready" class="card border-0 bg-light shadow-sm mb-3 d-none">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                                            <span class="fw-bold text-dark small"><i class="bi bi-shield-check text-success me-2"></i>Hash SHA-256 Siap Disimpan</span>
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1"><i class="bi bi-clock-history me-1"></i>Siap dikirim</span>
+                                        </div>
+                                        <div class="mb-2">
+                                            <div class="text-muted small mb-1">Hash SHA-256:</div>
+                                            <div class="p-2 bg-white border rounded font-monospace small text-break text-danger" id="bc-ready-hash">-</div>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center small">
+                                            <span class="text-muted">Status:</span>
+                                            <span class="fw-semibold text-primary"><i class="bi bi-arrow-right-circle me-1"></i>Siap dikirim ke Blockchain</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- STATE 3: Progress/Loading Indicator -->
+                                <div class="progress mb-3 d-none" id="progress-container-blockchain" style="height: 20px;">
                                     <div class="progress-bar progress-bar-striped progress-bar-animated bg-success"
                                         id="progress-bar-blockchain" style="width: 0%; font-weight: bold; font-size: 0.8em;">0%
                                     </div>
                                 </div>
 
-                                <label class="form-label fw-bold small mb-1">Log Proses Blockchain:</label>
-                                <div id="log-blockchain" class="log-box mb-3">Menunggu data hash...<br></div>
+                                <!-- STATE 4: Ringkasan Penyimpanan Blockchain (Penyimpanan Berhasil) -->
+                                <div id="bc-state-success" class="card border-0 bg-light shadow-sm mb-3 d-none">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                            <span class="fw-bold text-dark"><i class="bi bi-box-seam-fill text-success me-2"></i>Ringkasan Penyimpanan Blockchain</span>
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Penyimpanan Berhasil</span>
+                                        </div>
 
-                                <button class="btn btn-outline-danger w-100 mt-auto d-none" id="btn-reset">🔄 Selesai & Segarkan Panel</button>
+                                        <div class="row g-2 mb-3 small">
+                                            <div class="col-6 col-md-4">
+                                                <div class="text-muted">Network:</div>
+                                                <div class="fw-semibold text-dark"><i class="bi bi-diagram-2 me-1 text-primary"></i>Ganache</div>
+                                            </div>
+                                            <div class="col-6 col-md-4">
+                                                <div class="text-muted">Block Number:</div>
+                                                <div class="fw-semibold text-dark" id="bc-res-block">-</div>
+                                            </div>
+                                            <div class="col-6 col-md-4">
+                                                <div class="text-muted">Waktu Transaksi:</div>
+                                                <div class="fw-semibold text-dark" id="bc-res-waktu">0.00s</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <label class="form-label fw-bold small mb-0"><i class="bi bi-shield-check me-1"></i>Hash SHA-256:</label>
+                                            </div>
+                                            <div class="p-2 bg-white border rounded font-monospace small text-break text-danger" id="bc-res-hash">-</div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <label class="form-label fw-bold small mb-0"><i class="bi bi-receipt me-1"></i>Transaction Hash (TxHash):</label>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 text-nowrap" id="btn-copy-txhash" title="Salin TxHash"><i class="bi bi-copy me-1"></i>Salin TxHash</button>
+                                            </div>
+                                            <div class="p-2 bg-white border rounded font-monospace small text-break text-primary" id="bc-res-txhash">-</div>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-center small">
+                                            <span class="text-muted">Status Penyimpanan:</span>
+                                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Berhasil</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Tombol Utama Simpan Hash -->
+                                <button class="btn btn-success w-100 mb-3 fw-bold" id="btn-blockchain" disabled><i class="bi bi-cloud-upload me-2"></i>Simpan Hash ke Blockchain</button>
+
+                                <!-- Collapsible Log Detail -->
+                                <div id="bc-log-section" class="mt-auto">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <button class="btn btn-sm btn-link text-decoration-none p-0 text-muted small" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-log-blockchain" aria-expanded="false" aria-controls="collapse-log-blockchain">
+                                            <i class="bi bi-terminal me-1"></i>Lihat Detail Proses <i class="bi bi-chevron-down ms-1 small"></i>
+                                        </button>
+                                    </div>
+                                    <div class="collapse" id="collapse-log-blockchain">
+                                        <div id="log-blockchain" class="log-box mb-3">Menunggu data hash...<br></div>
+                                    </div>
+                                </div>
+
+                                <button class="btn btn-outline-danger w-100 mt-3 d-none" id="btn-reset">🔄 Selesai & Segarkan Panel</button>
                             </div>
                         </div>
                     </div>
@@ -891,7 +975,11 @@
                     // Tampilkan Card Ringkasan Hasil
                     document.getElementById('card-hasil-enkripsi').classList.remove('d-none');
 
-                    document.getElementById('alert-blockchain').classList.add('d-none');
+                    // Switch Blockchain Panel State: Waiting -> Ready (State 2)
+                    document.getElementById('bc-state-waiting').classList.add('d-none');
+                    document.getElementById('bc-state-ready').classList.remove('d-none');
+                    document.getElementById('bc-ready-hash').innerText = result.hash;
+
                     document.getElementById('btn-blockchain').disabled = false;
                     document.getElementById('log-blockchain').innerHTML = "";
                     addLog("log-blockchain", `Menerima Hash: ${result.hash.substring(0, 70)}`);
@@ -938,6 +1026,20 @@
             });
         });
 
+        document.getElementById('btn-copy-txhash').addEventListener('click', function () {
+            const text = document.getElementById('bc-res-txhash').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('btn-copy-txhash');
+                const origHTML = btn.innerHTML;
+                btn.innerHTML = `<i class="bi bi-check me-1"></i>Tersalin!`;
+                btn.className = "btn btn-sm btn-success py-0 px-2 text-nowrap";
+                setTimeout(() => {
+                    btn.innerHTML = origHTML;
+                    btn.className = "btn btn-sm btn-outline-secondary py-0 px-2 text-nowrap";
+                }, 2000);
+            });
+        });
+
         // 2. Eksekusi Blockchain
         document.getElementById('btn-blockchain').addEventListener('click', async function () {
             const btn = document.getElementById('btn-blockchain');
@@ -962,6 +1064,17 @@
                     addLog("log-blockchain", `Block Number: ${result.block}`);
                     addLog("log-blockchain", `TxHash: ${result.txhash}`);
 
+                    // Fill State 4 (Ringkasan Penyimpanan Blockchain)
+                    document.getElementById('bc-state-ready').classList.add('d-none');
+                    document.getElementById('bc-state-success').classList.remove('d-none');
+                    document.getElementById('bc-res-block').innerText = `#${result.block}`;
+                    document.getElementById('bc-res-waktu').innerText = `${result.waktu} detik`;
+                    document.getElementById('bc-res-hash').innerText = dataDokumen.hash;
+                    document.getElementById('bc-res-txhash').innerText = result.txhash;
+
+                    // Hide main simpan button and show reset button
+                    btn.classList.add('d-none');
+
                     muatRiwayat();
                     document.getElementById('btn-reset').classList.remove('d-none');
                 } else {
@@ -981,7 +1094,12 @@
             document.getElementById('form-enkripsi').reset();
             document.getElementById('btn-enkripsi').disabled = false;
 
-            document.getElementById('alert-blockchain').classList.remove('d-none');
+            // Reset Blockchain States back to State 1 (Waiting)
+            document.getElementById('bc-state-waiting').classList.remove('d-none');
+            document.getElementById('bc-state-ready').classList.add('d-none');
+            document.getElementById('bc-state-success').classList.add('d-none');
+
+            document.getElementById('btn-blockchain').classList.remove('d-none');
             document.getElementById('btn-blockchain').disabled = true;
 
             document.getElementById('progress-container-enkripsi').classList.add('d-none');
@@ -993,6 +1111,13 @@
             dataDokumen.twofish_trace = null;
             dataDokumenDekripsi.twofish_trace = null;
             twofishTrace = null;
+
+            // Close collapsible log if open
+            const collapseLog = document.getElementById('collapse-log-blockchain');
+            if (collapseLog && collapseLog.classList.contains('show')) {
+                const bsCollapse = bootstrap.Collapse.getInstance(collapseLog) || new bootstrap.Collapse(collapseLog, { toggle: false });
+                bsCollapse.hide();
+            }
 
             document.getElementById('log-blockchain').innerHTML = "Menunggu data hash...<br>";
 
