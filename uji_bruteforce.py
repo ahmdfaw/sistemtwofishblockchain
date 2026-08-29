@@ -35,7 +35,7 @@ def main():
         first_block = f.read(16)
 
     # 2. BACA FILE WORDLIST
-    wordlist_filename = "wordlist.txt"
+    wordlist_filename = "wordlist2.txt"
     if not os.path.exists(wordlist_filename):
         print(f"[ERROR] File '{wordlist_filename}' tidak ditemukan!")
         print("Silakan buat file wordlist.txt dan isi dengan daftar tebakan sandi.")
