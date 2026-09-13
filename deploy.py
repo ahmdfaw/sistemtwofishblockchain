@@ -53,8 +53,7 @@ tx_hash = SistemSkripsiPDF.constructor().transact({'from': my_address})
 # Menunggu transaksi selesai diproses oleh Ganache
 tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
-print("\n🚀 TAHAP 1 SELESAI! Brankas Blockchain Berhasil Berdiri.")
+print("\nBrankas Blockchain Berhasil Berdiri.")
 print("=====================================================")
 print(f"Alamat Kontrak : {tx_receipt.contractAddress}")
 print("=====================================================")
-print("CATAT ATAU COPY ALAMAT KONTRAK INI KARENA AKAN KITA GUNAKAN DI TAHAP 3 NANTI!")

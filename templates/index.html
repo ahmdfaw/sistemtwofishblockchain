@@ -638,60 +638,57 @@
 
     <div class="modal fade" id="modalAnalisisKripto" tabindex="-1" aria-labelledby="modalAnalisisLabel"
         aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: fit-content; min-width: 550px;">
-            <div class="modal-content shadow border-0">
-
-                <div class="modal-header bg-dark text-white py-3">
-                    <h5 class="modal-title" id="modalAnalisisLabel">
-                        <i class="bi bi-file-earmark-text-fill me-2"></i>Detail Analisis Kriptografi
+        <div class="modal-dialog modal-dialog-centered" style="max-width: max-content; min-width: 600px;">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-dark text-white py-3 border-bottom-0">
+                    <h5 class="modal-title fw-bold" id="modalAnalisisLabel">
+                        <i class="bi bi-file-earmark-text-fill me-2 text-info"></i>Detail Analisis Kriptografi
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
 
-                <div class="modal-body bg-white p-4">
-                    <div class="fs-5" style="line-height: 2; color: #333; white-space: nowrap;">
+                <div class="modal-body bg-light p-4">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <div style="display: grid; grid-template-columns: 220px 20px 1fr; gap: 16px 0; align-items: start; font-size: 1.05rem; color: #495057;">
+                                
+                                <div class="fw-semibold">Nama File</div>
+                                <div class="text-center">:</div>
+                                <div class="text-break text-dark fw-bold" id="nama-file-val">-</div>
 
-                        <div class="d-flex">
-                            <span style="min-width: 180px;">Nama File</span>
-                            <span>: <strong id="nama-file-val">-</strong></span>
+                                <div class="fw-semibold">Ukuran File Asli</div>
+                                <div class="text-center">:</div>
+                                <div class="text-break text-dark fw-bold" id="ukuran-asli-val">-</div>
+
+                                <div class="fw-semibold">Ukuran File Terenkripsi</div>
+                                <div class="text-center">:</div>
+                                <div class="text-break text-dark fw-bold" id="ukuran-enkripsi-val">-</div>
+
+                                <div class="fw-semibold">Waktu Enkripsi</div>
+                                <div class="text-center">:</div>
+                                <div class="text-break text-dark fw-bold" id="waktu-enkripsi-val">0.00 detik</div>
+
+                                <div class="fw-semibold">Waktu Simpan</div>
+                                <div class="text-center">:</div>
+                                <div class="text-break text-dark fw-bold" id="waktu-simpan-val">0.00 detik</div>
+
+                                <div class="fw-semibold">Uji Avalanche Effect</div>
+                                <div class="text-center">:</div>
+                                <div class="text-break text-dark fw-bold" id="ava-file-val">0.00%</div>
+
+                                <div class="fw-semibold">TxHash</div>
+                                <div class="text-center">:</div>
+                                <div class="text-break">
+                                    <code id="tx-hash-val" class="text-primary fw-bold" style="word-break: break-all; font-size: 0.95em;">0x...</code>
+                                </div>
+
+                            </div>
                         </div>
-
-                        <div class="d-flex">
-                            <span style="min-width: 180px;">Ukuran File</span>
-                            <span>: <strong id="ukuran-asli-val">-</strong></span>
-                        </div>
-
-                        <div class="d-flex">
-                            <span style="min-width: 180px;">Waktu Enkripsi</span>
-                            <span>: <strong id="waktu-enkripsi-val">0.00 detik</strong></span>
-                        </div>
-
-                        <div class="d-flex">
-                            <span style="min-width: 180px;">Waktu Simpan</span>
-                            <span>: <strong id="waktu-simpan-val">0.00 detik</strong></span>
-                        </div>
-
-                        <div class="d-flex">
-                            <span style="min-width: 180px;">Uji Avalanche File</span>
-                            <span>: <strong id="ava-file-val">0.00%</strong></span>
-                        </div>
-
-                        <div class="d-flex">
-                            <span style="min-width: 180px;">Uji Avalanche Sandi</span>
-                            <span>: <strong id="ava-sandi-val">0.00%</strong></span>
-                        </div>
-
-                        <div class="d-flex">
-                            <span style="min-width: 180px;">TxHash</span>
-                            <span>: <code id="tx-hash-val" class="text-primary fw-bold fs-6">0x...</code></span>
-                        </div>
-
                     </div>
                 </div>
 
-                <div class="modal-footer bg-light p-2">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                <div class="modal-footer bg-white border-top-0 pt-0 pb-3 pe-4">
+                    <button type="button" class="btn btn-secondary px-4 fw-semibold" data-bs-dismiss="modal">Tutup</button>
                 </div>
             </div>
         </div>
@@ -752,6 +749,15 @@
 
     <script>
         let dataDokumen = { filename: "", encrypted_filename: "", hash: "" };
+
+        function formatWaktu(detikAsli) {
+            let detik = parseFloat(detikAsli);
+            let menit = (detik / 60).toFixed(2);
+            if (menit !== "0.00") {
+                return `${detikAsli} detik (${menit} menit)`;
+            }
+            return `${detikAsli} detik`;
+        }
 
         function addLog(elementId, message) {
             const logBox = document.getElementById(elementId);
@@ -1109,7 +1115,7 @@
                 let infoHtml = `<span class="badge bg-secondary">N/A</span>`;
                 if (item.ava_pesan && item.ava_pesan !== "undefined") {
                     infoHtml = `<button class="btn btn-sm btn-outline-info fw-bold" title="Lihat Detail Analisis" 
-                onclick="tampilkanInfo('${item.filename}', '${item.ukuran_kb}', '${item.waktu_enkripsi}', '${item.waktu_simpan}', '${item.ava_pesan}', '${item.ava_key}', '${item.txhash}')">
+                onclick="tampilkanInfo('${item.filename}', '${item.ukuran_kb}', '${item.ukuran_enkripsi_kb || '-'}', '${item.waktu_enkripsi}', '${item.waktu_simpan}', '${item.ava_pesan}', '${item.txhash}')">
                 <i class="bi bi-info-circle"></i> Detail
                 </button>`;
                 }
@@ -1148,14 +1154,14 @@
                     dataDokumen.encrypted_filename = result.encrypted_filename;
                     dataDokumen.hash = result.hash;
                     dataDokumen.ava_pesan = result.ava_pesan;
-                    dataDokumen.ava_key = result.ava_key;
                     dataDokumen.ukuran_kb = result.ukuran_kb;
+                    dataDokumen.ukuran_enkripsi_kb = result.ukuran_enkripsi_kb;
                     dataDokumen.waktu_enkripsi = result.waktu;
                     dataDokumen.twofish_trace = result.twofish_trace;
 
                     // Isi data ke Card Ringkasan Hasil Enkripsi
                     document.getElementById('res-filename').innerHTML = `<i class="bi bi-file-earmark-pdf-fill me-1 text-danger"></i>${escapeHtml(result.encrypted_filename)}`;
-                    document.getElementById('res-waktu').innerText = `${result.waktu} detik`;
+                    document.getElementById('res-waktu').innerText = formatWaktu(result.waktu);
 
                     const sizeKB = parseFloat(result.ukuran_kb);
                     const sizeMB = (sizeKB / 1024).toFixed(2);
@@ -1267,7 +1273,7 @@
                     setProgressBlockchain(100, "Tersimpan di Blockchain!", "bg-success");
 
                     // Menambahkan Waktu Proses dan Block Number ke log
-                    addLog("log-blockchain", `TRANSAKSI SUKSES! Waktu Proses: ${result.waktu} detik`);
+                    addLog("log-blockchain", `TRANSAKSI SUKSES! Waktu Proses: ${formatWaktu(result.waktu)}`);
                     addLog("log-blockchain", `Block Number: ${result.block}`);
                     addLog("log-blockchain", `TxHash: ${result.txhash}`);
 
@@ -1275,7 +1281,7 @@
                     document.getElementById('bc-state-ready').classList.add('d-none');
                     document.getElementById('bc-state-success').classList.remove('d-none');
                     document.getElementById('bc-res-block').innerText = `#${result.block}`;
-                    document.getElementById('bc-res-waktu').innerText = `${result.waktu} detik`;
+                    document.getElementById('bc-res-waktu').innerText = formatWaktu(result.waktu);
                     document.getElementById('bc-res-hash').innerText = dataDokumen.hash;
                     document.getElementById('bc-res-txhash').innerText = result.txhash;
 
@@ -1360,20 +1366,39 @@
         });
 
         // Handler Pop-up Info Kriptografi
-        function tampilkanInfo(namaFile, ukuranFile, waktuEnkripsi, waktuSimpan, avaPesan, avaKey, txHash) {
+        function tampilkanInfo(namaFile, ukuranFile, ukuranEnkripsiFile, waktuEnkripsi, waktuSimpan, avaPesan, txHash) {
             document.getElementById('nama-file-val').innerText = namaFile;
-            document.getElementById('ukuran-asli-val').innerText = ukuranFile + " KB";
-            document.getElementById('waktu-enkripsi-val').innerText = waktuEnkripsi + " detik";
-            document.getElementById('waktu-simpan-val').innerText = waktuSimpan + " detik";
+            
+            const ukKB = parseFloat(ukuranFile);
+            const ukMB = (ukKB / 1024).toFixed(2);
+            if (ukMB === "0.00") {
+                document.getElementById('ukuran-asli-val').innerText = `${ukKB.toFixed(2)} KB`;
+            } else {
+                document.getElementById('ukuran-asli-val').innerText = `${ukKB.toFixed(2)} KB (${ukMB} MB)`;
+            }
+            
+            document.getElementById('waktu-enkripsi-val').innerText = formatWaktu(waktuEnkripsi);
+            document.getElementById('waktu-simpan-val').innerText = formatWaktu(waktuSimpan);
 
             document.getElementById('ava-file-val').innerText = avaPesan + "%";
-            document.getElementById('ava-sandi-val').innerText = avaKey + "%";
 
             let nilaiPesan = parseFloat(avaPesan);
             let warnaPesan = (nilaiPesan >= 45 && nilaiPesan <= 55) ? "text-success" : "text-danger";
             document.getElementById('ava-file-val').className = `fw-bold mb-0 ${warnaPesan}`;
 
             document.getElementById('tx-hash-val').innerText = txHash;
+
+            if (ukuranEnkripsiFile && ukuranEnkripsiFile !== "-" && ukuranEnkripsiFile !== "undefined") {
+                const encKB = parseFloat(ukuranEnkripsiFile);
+                const encMB = (encKB / 1024).toFixed(2);
+                if (encMB === "0.00") {
+                    document.getElementById('ukuran-enkripsi-val').innerText = `${encKB.toFixed(2)} KB`;
+                } else {
+                    document.getElementById('ukuran-enkripsi-val').innerText = `${encKB.toFixed(2)} KB (${encMB} MB)`;
+                }
+            } else {
+                document.getElementById('ukuran-enkripsi-val').innerText = `-`;
+            }
 
             let modalAnalisis = new bootstrap.Modal(document.getElementById('modalAnalisisKripto'));
             modalAnalisis.show();
@@ -1410,7 +1435,7 @@
 
                     // Isi data ke Card Ringkasan Hasil Dekripsi
                     document.getElementById('res-dekripsi-filename').innerHTML = `<i class="bi bi-file-earmark-pdf-fill me-1 text-danger"></i>${escapeHtml(result.decrypted_filename)}`;
-                    document.getElementById('res-dekripsi-waktu').innerText = `${result.waktu} detik`;
+                    document.getElementById('res-dekripsi-waktu').innerText = formatWaktu(result.waktu);
 
                     // Hitung ukuran file output via HEAD request
                     try {

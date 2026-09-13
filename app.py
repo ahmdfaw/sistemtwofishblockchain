@@ -136,14 +136,6 @@ def api_enkripsi():
         cipher_ubah_pesan = kriptografi.encrypt_block(list(block_ubah), K, S)
         beda_pesan = hitung_perbedaan_bit(cipher_asli, cipher_ubah_pesan)
         ava_pesan = round((beda_pesan / 128) * 100, 2)
-
-        # Skenario B: Ubah 1 bit pada Kunci/Sandi
-        key_ubah = bytearray(key_bytes)
-        key_ubah[-1] = key_ubah[-1] ^ 1
-        K2, S2 = kriptografi.generate_subkeys(key_ubah)
-        cipher_ubah_key = kriptografi.encrypt_block(list(block_sampel), K2, S2)
-        beda_key = hitung_perbedaan_bit(cipher_asli, cipher_ubah_key)
-        ava_key = round((beda_key / 128) * 100, 2)
         # ========================================================
 
         encrypted_filename = "ENCRYPTED_" + filename
@@ -156,6 +148,7 @@ def api_enkripsi():
         sha256_hash = hashlib.sha256(encrypted_data).hexdigest()
         
         ukuran_kb = round(os.path.getsize(filepath) / 1024, 2)
+        ukuran_enkripsi_kb = round(os.path.getsize(encrypted_filepath) / 1024, 2)
 
         return jsonify({
             "status": "success",
@@ -164,8 +157,8 @@ def api_enkripsi():
             "hash": sha256_hash,
             "waktu": waktu_proses,
             "ava_pesan": ava_pesan, 
-            "ava_key": ava_key,
             "ukuran_kb": ukuran_kb,
+            "ukuran_enkripsi_kb": ukuran_enkripsi_kb,
             "twofish_trace": twofish_trace
         })
     else:
@@ -185,8 +178,8 @@ def api_blockchain():
     sha256_hash = data.get('hash')
     
     ava_pesan = data.get('ava_pesan', 'N/A')
-    ava_key = data.get('ava_key', 'N/A')
     ukuran_kb = data.get('ukuran_kb', '0')
+    ukuran_enkripsi_kb = data.get('ukuran_enkripsi_kb', '0')
     waktu_enkripsi = data.get('waktu_enkripsi', '0')
 
     if not w3.is_connected():
@@ -205,8 +198,8 @@ def api_blockchain():
             "hash": sha256_hash,
             "txhash": txhash_str,
             "ava_pesan": ava_pesan, 
-            "ava_key": ava_key,
             "ukuran_kb": ukuran_kb,
+            "ukuran_enkripsi_kb": ukuran_enkripsi_kb,
             "waktu_enkripsi": waktu_enkripsi,
             "waktu_simpan": waktu_simpan
         })
