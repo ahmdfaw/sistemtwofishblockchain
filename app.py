@@ -1,12 +1,14 @@
 import os
 import hashlib
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, send_file
 from werkzeug.utils import secure_filename
 from web3 import Web3
 import kriptografi 
 import time
 import json
-from dotenv import load_dotenv  
+from dotenv import load_dotenv
+import io
+import openpyxl
 
 load_dotenv()
 
@@ -224,6 +226,62 @@ def api_riwayat():
             except:
                 pass
     return jsonify({"riwayat": []})
+
+def get_numeric_value(val):
+    try:
+        if val is None or str(val).strip() in ["", "-", "undefined", "N/A"]:
+            return "-"
+        return float(val)
+    except (ValueError, TypeError):
+        return "-"
+
+@app.route('/api/export/excel', methods=['GET'])
+def export_excel():
+    riwayat = []
+    if os.path.exists(RIWAYAT_FILE):
+        with open(RIWAYAT_FILE, 'r') as f:
+            try:
+                riwayat = json.load(f)
+            except:
+                pass
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Riwayat Sistem & Transaksi"
+
+    headers = [
+        'No', 'Nama File Terenkripsi', 'Ukuran File Asli (KB)', 'Ukuran File Terenkripsi (KB)', 
+        'Waktu Enkripsi (detik)', 'Waktu Simpan (detik)', 'Uji Avalanche Effect (%)', 'Hash (SHA-256)', 
+        'TxHash (Blockchain)', 'Status'
+    ]
+    ws.append(headers)
+
+    for idx, item in enumerate(riwayat, start=1):
+        filename = item.get('filename', '-')
+        ukuran_asli = get_numeric_value(item.get('ukuran_kb'))
+        ukuran_enkripsi = get_numeric_value(item.get('ukuran_enkripsi_kb'))
+        waktu_enkripsi = get_numeric_value(item.get('waktu_enkripsi'))
+        waktu_simpan = get_numeric_value(item.get('waktu_simpan'))
+        ava_pesan = get_numeric_value(item.get('ava_pesan'))
+            
+        hash_val = item.get('hash', '-')
+        txhash_val = item.get('txhash', '-')
+        
+        ws.append([
+            idx, filename, ukuran_asli, ukuran_enkripsi, 
+            waktu_enkripsi, waktu_simpan, ava_pesan, hash_val, txhash_val, 'Terkunci'
+        ])
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='riwayat_sistem_transaksi.xlsx'
+    )
 
 @app.route('/api/dekripsi', methods=['POST'])
 def api_dekripsi():
