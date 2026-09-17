@@ -676,6 +676,10 @@
                                 <div class="text-center">:</div>
                                 <div class="text-break text-dark fw-bold" id="waktu-simpan-val">0.00 detik</div>
 
+                                <div class="fw-semibold">Bit Berubah</div>
+                                <div class="text-center">:</div>
+                                <div class="text-break text-dark fw-bold" id="beda-pesan-val">-</div>
+
                                 <div class="fw-semibold">Uji Avalanche Effect</div>
                                 <div class="text-center">:</div>
                                 <div class="text-break text-dark fw-bold" id="ava-file-val">0.00%</div>
@@ -1124,7 +1128,7 @@
                 let infoHtml = `<span class="badge bg-secondary">N/A</span>`;
                 if (item.ava_pesan && item.ava_pesan !== "undefined") {
                     infoHtml = `<button class="btn btn-sm btn-outline-info fw-bold" title="Lihat Detail Analisis" 
-                onclick="tampilkanInfo('${item.filename}', '${item.ukuran_kb}', '${item.ukuran_enkripsi_kb || '-'}', '${item.waktu_enkripsi}', '${item.waktu_simpan}', '${item.ava_pesan}', '${item.txhash}')">
+                onclick="tampilkanInfo('${item.filename}', '${item.ukuran_kb}', '${item.ukuran_enkripsi_kb || '-'}', '${item.waktu_enkripsi}', '${item.waktu_simpan}', '${item.ava_pesan}', '${item.txhash}', '${item.beda_pesan || ''}')">
                 <i class="bi bi-info-circle"></i> Detail
                 </button>`;
                 }
@@ -1164,6 +1168,7 @@
                     dataDokumen.filename = result.filename;
                     dataDokumen.encrypted_filename = result.encrypted_filename;
                     dataDokumen.hash = result.hash;
+                    dataDokumen.beda_pesan = result.beda_pesan;
                     dataDokumen.ava_pesan = result.ava_pesan;
                     dataDokumen.ukuran_kb = result.ukuran_kb;
                     dataDokumen.ukuran_enkripsi_kb = result.ukuran_enkripsi_kb;
@@ -1377,7 +1382,7 @@
         });
 
         // Handler Pop-up Info Kriptografi
-        function tampilkanInfo(namaFile, ukuranFile, ukuranEnkripsiFile, waktuEnkripsi, waktuSimpan, avaPesan, txHash) {
+        function tampilkanInfo(namaFile, ukuranFile, ukuranEnkripsiFile, waktuEnkripsi, waktuSimpan, avaPesan, txHash, bedaPesan) {
             document.getElementById('nama-file-val').innerText = namaFile;
             
             const ukKB = parseFloat(ukuranFile);
@@ -1390,6 +1395,9 @@
             
             document.getElementById('waktu-enkripsi-val').innerText = formatWaktu(waktuEnkripsi);
             document.getElementById('waktu-simpan-val').innerText = formatWaktu(waktuSimpan);
+
+            let bedaHtml = (bedaPesan && bedaPesan !== 'undefined' && bedaPesan !== 'N/A' && bedaPesan !== '') ? `${bedaPesan} dari 128 bit` : '-';
+            document.getElementById('beda-pesan-val').innerText = bedaHtml;
 
             document.getElementById('ava-file-val').innerText = avaPesan + "%";
 

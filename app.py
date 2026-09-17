@@ -158,6 +158,7 @@ def api_enkripsi():
             "encrypted_filename": encrypted_filename,
             "hash": sha256_hash,
             "waktu": waktu_proses,
+            "beda_pesan": beda_pesan,
             "ava_pesan": ava_pesan, 
             "ukuran_kb": ukuran_kb,
             "ukuran_enkripsi_kb": ukuran_enkripsi_kb,
@@ -179,6 +180,7 @@ def api_blockchain():
     encrypted_filename = data.get('encrypted_filename')
     sha256_hash = data.get('hash')
     
+    beda_pesan = data.get('beda_pesan', 'N/A')
     ava_pesan = data.get('ava_pesan', 'N/A')
     ukuran_kb = data.get('ukuran_kb', '0')
     ukuran_enkripsi_kb = data.get('ukuran_enkripsi_kb', '0')
@@ -199,6 +201,7 @@ def api_blockchain():
             "filename": encrypted_filename,
             "hash": sha256_hash,
             "txhash": txhash_str,
+            "beda_pesan": beda_pesan,
             "ava_pesan": ava_pesan, 
             "ukuran_kb": ukuran_kb,
             "ukuran_enkripsi_kb": ukuran_enkripsi_kb,
@@ -251,7 +254,7 @@ def export_excel():
 
     headers = [
         'No', 'Nama File Terenkripsi', 'Ukuran File Asli (KB)', 'Ukuran File Terenkripsi (KB)', 
-        'Waktu Enkripsi (detik)', 'Waktu Simpan (detik)', 'Uji Avalanche Effect (%)', 'Hash (SHA-256)', 
+        'Waktu Enkripsi (detik)', 'Waktu Simpan (detik)', 'Bit Berubah (dari 128 bit)', 'Uji Avalanche Effect (%)', 'Hash (SHA-256)', 
         'TxHash (Blockchain)', 'Status'
     ]
     ws.append(headers)
@@ -262,6 +265,7 @@ def export_excel():
         ukuran_enkripsi = get_numeric_value(item.get('ukuran_enkripsi_kb'))
         waktu_enkripsi = get_numeric_value(item.get('waktu_enkripsi'))
         waktu_simpan = get_numeric_value(item.get('waktu_simpan'))
+        beda_pesan = get_numeric_value(item.get('beda_pesan'))
         ava_pesan = get_numeric_value(item.get('ava_pesan'))
             
         hash_val = item.get('hash', '-')
@@ -269,7 +273,7 @@ def export_excel():
         
         ws.append([
             idx, filename, ukuran_asli, ukuran_enkripsi, 
-            waktu_enkripsi, waktu_simpan, ava_pesan, hash_val, txhash_val, 'Terkunci'
+            waktu_enkripsi, waktu_simpan, beda_pesan, ava_pesan, hash_val, txhash_val, 'Terkunci'
         ])
 
     output = io.BytesIO()
