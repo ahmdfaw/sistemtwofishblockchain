@@ -16,13 +16,18 @@ def prepare_key(password_str):
 
 def main():
     print("="*60)
-    print("🕵️ PENGUJIAN DICTIONARY ATTACK (KNOWN-PLAINTEXT) PADA FILE")
+    print("PENGUJIAN DICTIONARY ATTACK (KNOWN-PLAINTEXT) PADA FILE")
     print("="*60)
 
     # 1. BACA FILE TARGET HASIL ENKRIPSI DARI FLASK
-    # Ganti dengan nama file ENCRYPTED_... yang ada di folder uploads kamu
+    if len(sys.argv) < 2:
+        print("[ERROR] Masukkan nama file target yang ingin diuji!")
+        print("Cara penggunaan: python uji_bruteforce.py <nama_file.pdf>")
+        print("Contoh: python uji_bruteforce.py ENCRYPTED_Data_Uji_1.pdf")
+        return
+
     folder_uploads = "uploads" # Sesuaikan jika nama foldermu beda
-    nama_file = "ENCRYPTED_PDF_Deid_Deidentification_Hard_8.pdf" # GANTI DENGAN FILE TARGETMU
+    nama_file = sys.argv[1] # Mengambil argumen pertama dari command line
     file_path = os.path.join(folder_uploads, nama_file)
     
     if not os.path.exists(file_path):
