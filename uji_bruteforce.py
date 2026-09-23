@@ -21,47 +21,54 @@ def main():
 
     # 1. BACA FILE TARGET HASIL ENKRIPSI DARI FLASK
     if len(sys.argv) < 2:
-        print("[ERROR] Masukkan nama file target yang ingin diuji!")
-        print("Cara penggunaan: python uji_bruteforce.py <nama_file.pdf>")
+        print("[ERROR] Masukkan minimal 1 nama file target yang ingin diuji!")
+        print("Cara penggunaan: python uji_bruteforce.py <nama_file1.pdf> [nama_file2.pdf] ...")
         print("Contoh: python uji_bruteforce.py ENCRYPTED_Data_Uji_1.pdf")
         return
 
     folder_uploads = "uploads" # Sesuaikan jika nama foldermu beda
-    nama_file = sys.argv[1] # Mengambil argumen pertama dari command line
-    file_path = os.path.join(folder_uploads, nama_file)
+    target_files = sys.argv[1:] # Mengambil semua argumen setelah nama script
+    targets_data = {} # Dictionary untuk menyimpan nama_file -> 16 byte pertama
     
-    if not os.path.exists(file_path):
-        print(f"[ERROR] File '{file_path}' tidak ditemukan!")
-        print("Pastikan kamu sudah mengenkripsi file lewat web dan menaruh namanya dengan benar.")
+    print("[*] Memeriksa file target...")
+    for nama_file in target_files:
+        file_path = os.path.join(folder_uploads, nama_file)
+        if not os.path.exists(file_path):
+            print(f"  [-] [ERROR] File '{nama_file}' tidak ditemukan, dilewati.")
+            continue
+            
+        with open(file_path, "rb") as f:
+            # Kita hanya perlu 16 byte pertama (1 blok) untuk mencari '%PDF-'
+            targets_data[nama_file] = f.read(16)
+            print(f"  [+] [OK] File '{nama_file}' dimuat.")
+            
+    if not targets_data:
+        print("\n[ERROR] Tidak ada file target yang valid untuk diuji.")
         return
-        
-    with open(file_path, "rb") as f:
-        # Kita hanya perlu 16 byte pertama (1 blok) untuk mencari '%PDF-'
-        first_block = f.read(16)
 
     # 2. BACA FILE WORDLIST
-    wordlist_filename = "wordlist2.txt"
+    wordlist_filename = "wordlist3.txt"
     if not os.path.exists(wordlist_filename):
-        print(f"[ERROR] File '{wordlist_filename}' tidak ditemukan!")
+        print(f"\n[ERROR] File '{wordlist_filename}' tidak ditemukan!")
         print("Silakan buat file wordlist.txt dan isi dengan daftar tebakan sandi.")
         return
         
     wordlist = []
-    print(f"[*] Membaca kamus '{wordlist_filename}'...")
+    print(f"\n[*] Membaca kamus '{wordlist_filename}'...")
     with open(wordlist_filename, "r", encoding="utf-8", errors="ignore") as file:
         for line in file:
             clean_word = line.strip()
             if clean_word:
                 wordlist.append(clean_word)
 
-    print(f"[*] Target File Asli : {file_path}")
     print(f"[*] Total Kata Kamus : {len(wordlist)} kata")
-    print(f"[*] Ciphertext Blok 1: {first_block.hex().upper()}")
-    print("[*] Memulai mesin pembongkar kata sandi...\n")
+    print(f"[*] Total Target Uji : {len(targets_data)} file")
+    print("[*] Memulai mesin pembongkar kata sandi...\n\n")
 
     start_time = time.time()
     attempts = 0
-    found = False
+    found_targets = []
+    total_targets = len(targets_data)
 
     # 3. PROSES PENYERANGAN MURNI DARI KAMUS
     for word in wordlist:
@@ -70,31 +77,48 @@ def main():
 
         # Indikator loading 
         if attempts % 50 == 0 or attempts == len(wordlist):
-            sys.stdout.write(f"\r[~] Mencoba baris ke-{attempts}: '{word}'...   ")
+            sys.stdout.write(f"\r[~] Mencoba baris ke-{attempts}: '{word}'...         ")
             sys.stdout.flush()
 
         try:
-            # Generate subkeys dan dekripsi 1 blok pertama
+            # Generate subkeys (cukup 1x per kata untuk semua target)
             K, S = kriptografi.generate_subkeys(guess_key)
-            decrypted_block = kriptografi.decrypt_block(list(first_block), K, S)
-            decrypted_bytes = bytearray(decrypted_block)
-            
-            # 4. VERIFIKASI KEBERHASILAN (Cek Magic Bytes PDF)
-            if decrypted_bytes.startswith(b'%PDF-'):
-                end_time = time.time()
-                sys.stdout.write("\r" + " " * 60 + "\r") # Bersihkan layar loading
-                print(f"\n[SUCCESS] KUNCI DITEMUKAN: '{word}'")
-                print(f"[!] File terbukti merupakan dokumen PDF asli.")
-                print(f"[!] Jumlah Tebakan Kamus : {attempts} kali")
-                print(f"[!] Waktu Komputasi      : {end_time - start_time:.4f} detik")
-                found = True
-                break
         except Exception:
-            pass # Abaikan jika gagal dekripsi (out of range / garbage)
+            continue # Abaikan jika key preparation gagal
 
-    if not found:
-        print("\n\n[FAILED] Serangan gagal. Kunci tidak ada di dalam wordlist.")
-        print(f"Waktu yang dihabiskan: {time.time() - start_time:.4f} detik")
+        # Coba dekripsi ke semua target yang belum ditemukan kuncinya
+        targets_to_test = [t for t in targets_data.keys() if t not in found_targets]
+        for t_name in targets_to_test:
+            try:
+                decrypted_block = kriptografi.decrypt_block(list(targets_data[t_name]), K, S)
+                decrypted_bytes = bytearray(decrypted_block)
+                
+                # 4. VERIFIKASI KEBERHASILAN (Cek Magic Bytes PDF)
+                if decrypted_bytes.startswith(b'%PDF-'):
+                    end_time = time.time()
+                    sys.stdout.write("\r" + " " * 80 + "\r") # Bersihkan layar loading agar tidak tumpang tindih
+                    print(f"[SUCCESS] KUNCI DITEMUKAN UNTUK: '{t_name}'")
+                    print(f"  => Kata Sandi : '{word}'")
+                    print(f"  => Tebakan Ke : {attempts} kali")
+                    print(f"  => Waktu      : {end_time - start_time:.4f} detik\n")
+                    found_targets.append(t_name)
+            except Exception:
+                pass # Abaikan jika gagal dekripsi (out of range / garbage)
+                
+        # Jika semua target sudah ketemu, tidak perlu lanjut membaca wordlist
+        if len(found_targets) == total_targets:
+            break
+
+    print("\n") # Memberikan jarak antara indikator loading terakhir dan hasil summary
+    if len(found_targets) < total_targets:
+        print("[FAILED] Serangan selesai. Beberapa/semua target tidak ditemukan kuncinya:")
+        for t_name in targets_data.keys():
+            if t_name not in found_targets:
+                print(f"  - {t_name}")
+        print(f"\nWaktu total yang dihabiskan: {time.time() - start_time:.4f} detik")
+    else:
+        print("[SUCCESS] Serangan selesai. Seluruh file target berhasil ditemukan kuncinya!")
+        print(f"\nWaktu total yang dihabiskan: {time.time() - start_time:.4f} detik")
 
 if __name__ == "__main__":
     main()
