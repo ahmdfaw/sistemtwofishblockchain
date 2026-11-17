@@ -47,7 +47,7 @@ def main():
         return
 
     # 2. BACA FILE WORDLIST
-    wordlist_filename = "wordlist3.txt"
+    wordlist_filename = "wordlist2.txt"
     if not os.path.exists(wordlist_filename):
         print(f"\n[ERROR] File '{wordlist_filename}' tidak ditemukan!")
         print("Silakan buat file wordlist.txt dan isi dengan daftar tebakan sandi.")
@@ -76,7 +76,7 @@ def main():
         guess_key = prepare_key(word)
 
         # Indikator loading 
-        if attempts % 50 == 0 or attempts == len(wordlist):
+        if attempts % 500 == 0 or attempts == len(wordlist):
             sys.stdout.write(f"\r[~] Mencoba baris ke-{attempts}: '{word}'...         ")
             sys.stdout.flush()
 

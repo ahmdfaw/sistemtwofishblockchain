@@ -132,7 +132,7 @@
     </nav>
 
     <div class="container mb-5">
-        <h2 class="text-center mb-4 fw-bold">Pengamanan & Verifikasi Dokumen Skripsi</h2>
+        <h2 class="text-center mb-4 fw-bold">Pengamanan & Verifikasi Dokumen Digital</h2>
 
         <div class="tab-content" id="nav-tabContent">
             <!-- TAB 1: ENKRIPSI & BLOCKCHAIN -->
@@ -379,10 +379,12 @@
                 <div class="row">
                     <div class="col-12">
                         <div class="card shadow-sm border-0 mb-4">
-                            <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                            <div
+                                class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
                                 <div><i class="bi bi-clock-history me-2"></i>Riwayat Sistem & Transaksi</div>
                                 <div>
-                                    <a href="/api/export/excel" class="btn btn-sm btn-outline-light"><i class="bi bi-filetype-xlsx me-1"></i>Export Excel</a>
+                                    <a href="/api/export/excel" class="btn btn-sm btn-outline-light"><i
+                                            class="bi bi-filetype-xlsx me-1"></i>Export Excel</a>
                                 </div>
                             </div>
                             <div class="card-body table-responsive">
@@ -648,14 +650,16 @@
                     <h5 class="modal-title fw-bold" id="modalAnalisisLabel">
                         <i class="bi bi-file-earmark-text-fill me-2 text-info"></i>Detail Analisis Kriptografi
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
 
                 <div class="modal-body bg-light p-4">
                     <div class="card border-0 shadow-sm">
                         <div class="card-body p-4">
-                            <div style="display: grid; grid-template-columns: 220px 20px 1fr; gap: 16px 0; align-items: start; font-size: 1.05rem; color: #495057;">
-                                
+                            <div
+                                style="display: grid; grid-template-columns: 220px 20px 1fr; gap: 16px 0; align-items: start; font-size: 1.05rem; color: #495057;">
+
                                 <div class="fw-semibold">Nama File</div>
                                 <div class="text-center">:</div>
                                 <div class="text-break text-dark fw-bold" id="nama-file-val">-</div>
@@ -687,7 +691,8 @@
                                 <div class="fw-semibold">TxHash</div>
                                 <div class="text-center">:</div>
                                 <div class="text-break">
-                                    <code id="tx-hash-val" class="text-primary fw-bold" style="word-break: break-all; font-size: 0.95em;">0x...</code>
+                                    <code id="tx-hash-val" class="text-primary fw-bold"
+                                        style="word-break: break-all; font-size: 0.95em;">0x...</code>
                                 </div>
 
                             </div>
@@ -696,7 +701,8 @@
                 </div>
 
                 <div class="modal-footer bg-white border-top-0 pt-0 pb-3 pe-4">
-                    <button type="button" class="btn btn-secondary px-4 fw-semibold" data-bs-dismiss="modal">Tutup</button>
+                    <button type="button" class="btn btn-secondary px-4 fw-semibold"
+                        data-bs-dismiss="modal">Tutup</button>
                 </div>
             </div>
         </div>
@@ -1132,7 +1138,7 @@
                 <i class="bi bi-info-circle"></i> Detail
                 </button>`;
                 }
-                
+
                 let aksiHtml = `<div class="d-flex text-nowrap align-items-center">${downloadHtml}${infoHtml}</div>`;
 
                 tbody.innerHTML += `<tr>
@@ -1384,7 +1390,7 @@
         // Handler Pop-up Info Kriptografi
         function tampilkanInfo(namaFile, ukuranFile, ukuranEnkripsiFile, waktuEnkripsi, waktuSimpan, avaPesan, txHash, bedaPesan) {
             document.getElementById('nama-file-val').innerText = namaFile;
-            
+
             const ukKB = parseFloat(ukuranFile);
             const ukMB = (ukKB / 1024).toFixed(2);
             if (ukMB === "0.00") {
@@ -1392,7 +1398,7 @@
             } else {
                 document.getElementById('ukuran-asli-val').innerText = `${ukKB.toFixed(2)} KB (${ukMB} MB)`;
             }
-            
+
             document.getElementById('waktu-enkripsi-val').innerText = formatWaktu(waktuEnkripsi);
             document.getElementById('waktu-simpan-val').innerText = formatWaktu(waktuSimpan);
 
